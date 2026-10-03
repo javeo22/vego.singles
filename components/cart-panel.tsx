@@ -9,7 +9,7 @@ import {
   Trash,
   X,
 } from "@phosphor-icons/react";
-import { formatPrice } from "@/lib/catalog";
+import { formatPrice, variantLabel } from "@/lib/catalog";
 import ProductArt from "./product-art";
 import { useShop } from "./shop-provider";
 
@@ -60,14 +60,14 @@ export default function CartPanel() {
         <div className="cart-panel">
           <div className="cart-heading">
             <div>
-              <span className="eyebrow">A few good finds</span>
+              <span className="eyebrow">Tu selección</span>
               <h2 id="cart-title">
-                Your cart<span>.</span>
+                Tu carrito<span>.</span>
               </h2>
             </div>
             <button
               className="icon-button"
-              aria-label="Close cart"
+              aria-label="Cerrar carrito"
               onClick={() => setCartOpen(false)}
             >
               <X size={24} />
@@ -76,10 +76,10 @@ export default function CartPanel() {
           {!cart.length ? (
             <div className="cart-empty">
               <ShoppingCart size={48} weight="light" />
-              <h3>Your next great find is waiting.</h3>
-              <p>Add a card to get started.</p>
+              <h3>Tu carrito está vacío.</h3>
+              <p>Agrega una carta para empezar.</p>
               <button className="button" onClick={() => setCartOpen(false)}>
-                Browse the shop <ArrowRight size={20} />
+                Ver catálogo <ArrowRight size={20} />
               </button>
             </div>
           ) : (
@@ -94,14 +94,15 @@ export default function CartPanel() {
                       <h3>{item.card_printings?.canonical_name}</h3>
                       <p>{item.card_printings?.set_name}</p>
                       <p>
-                        {item.condition} · {item.card_printings?.language}{" "}
-                        {item.finish && `· ${item.finish}`}
+                        {variantLabel(item.condition)} ·{" "}
+                        {variantLabel(item.card_printings?.language)}{" "}
+                        {item.finish && `· ${variantLabel(item.finish)}`}
                       </p>
                       <button
                         className="remove-button"
                         onClick={() => changeCount(item.id, 0)}
                       >
-                        <Trash size={14} /> Remove
+                        <Trash size={14} /> Quitar
                       </button>
                       <div className="cart-line-bottom">
                         <strong>
@@ -109,15 +110,15 @@ export default function CartPanel() {
                         </strong>
                         <div className="quantity-control">
                           <button
-                            aria-label={`Decrease ${item.card_printings?.canonical_name} quantity`}
+                            aria-label={`Reducir cantidad de ${item.card_printings?.canonical_name}`}
                             disabled={count <= 1}
                             onClick={() => changeCount(item.id, count - 1)}
                           >
                             <Minus size={15} />
                           </button>
-                          <span aria-label="Quantity">{count}</span>
+                          <span aria-label="Cantidad">{count}</span>
                           <button
-                            aria-label={`Increase ${item.card_printings?.canonical_name} quantity`}
+                            aria-label={`Aumentar cantidad de ${item.card_printings?.canonical_name}`}
                             disabled={count >= item.quantity}
                             onClick={() => changeCount(item.id, count + 1)}
                           >
@@ -130,28 +131,30 @@ export default function CartPanel() {
                 ))}
               </div>
               <section className="order-summary">
-                <h3>Order summary</h3>
+                <h3>Resumen del pedido</h3>
                 <div className="summary-row">
                   <span>Subtotal</span>
                   <strong>{formatPrice(subtotal)}</strong>
                 </div>
                 <div className="summary-row">
-                  <span>Delivery</span>
-                  <span>Confirmed on WhatsApp</span>
+                  <span>Entrega</span>
+                  <span>Por confirmar en WhatsApp</span>
                 </div>
                 <div className="summary-total">
                   <span>Subtotal</span>
                   <strong>{formatPrice(subtotal)}</strong>
                 </div>
                 <button className="button checkout-button" onClick={checkout}>
-                  {samples ? "Ask about these cards" : "Continue on WhatsApp"}
+                  {samples
+                    ? "Consultar disponibilidad"
+                    : "Comprar por WhatsApp"}
                   <ArrowRight size={22} />
                 </button>
-                <p className="checkout-caption">No account needed.</p>
+                <p className="checkout-caption">No necesitas una cuenta.</p>
                 <p className="checkout-note">
                   {samples
-                    ? "Illustrative prices. Confirm availability on WhatsApp."
-                    : "Confirm availability and delivery on WhatsApp."}
+                    ? "Precios de referencia. Confirma disponibilidad por WhatsApp."
+                    : "Confirma disponibilidad y entrega por WhatsApp."}
                 </p>
               </section>
             </>
@@ -160,7 +163,7 @@ export default function CartPanel() {
             <a href="/" className="brand">
               vego<span>.</span>singles
             </a>
-            <p>For the love of the game.</p>
+            <p>Por amor al juego.</p>
           </div>
         </div>
       </dialog>
@@ -168,7 +171,7 @@ export default function CartPanel() {
         <div className="toast" role="status">
           <CheckCircle size={22} />
           <span>{toast}</span>
-          <button aria-label="Dismiss notification" onClick={dismissToast}>
+          <button aria-label="Cerrar notificación" onClick={dismissToast}>
             <X size={18} />
           </button>
         </div>

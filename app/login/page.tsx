@@ -17,11 +17,10 @@ export default function Login() {
         email,
         options: { emailRedirectTo: `${location.origin}/auth/callback` },
       });
-      if (authError)
-        setError("We couldn't send your sign-in link. Please try again.");
+      if (authError) setError("No se pudo enviar el enlace. Intenta de nuevo.");
       else setSent(true);
     } catch {
-      setError("Sign-in is temporarily unavailable. Please try again later.");
+      setError("No se puede iniciar sesión ahora. Intenta más tarde.");
     } finally {
       setPending(false);
     }
@@ -30,21 +29,21 @@ export default function Login() {
     <main id="main-content" className="login-page wide">
       <section className="login-card">
         <h1>
-          Your account<span>.</span>
+          Admin<span>.</span>
         </h1>
-        <p className="muted">Sign in with your authorized email.</p>
+        <p className="muted">Ingresa tu correo autorizado.</p>
         {sent ? (
           <div className="login-success" role="status">
             <CheckCircle size={35} />
-            <h2>Check your inbox.</h2>
+            <h2>Revisa tu correo.</h2>
             <p>Revisa tu correo para iniciar sesión.</p>
             <button className="button secondary" onClick={() => setSent(false)}>
-              Use another email
+              Usar otro correo
             </button>
           </div>
         ) : (
           <form onSubmit={submit}>
-            <label htmlFor="email">Email address</label>
+            <label htmlFor="email">Correo electrónico</label>
             <div className="login-input">
               <EnvelopeSimple size={22} weight="light" />
               <input
@@ -64,7 +63,7 @@ export default function Login() {
               </p>
             )}
             <button className="button login-submit" disabled={pending}>
-              {pending ? "Sending your link…" : "Send sign-in link"}
+              {pending ? "Enviando enlace…" : "Enviar enlace"}
               <ArrowRight size={20} />
             </button>
           </form>

@@ -9,6 +9,7 @@ import {
 import {
   displayExamples,
   formatPrice,
+  variantLabel,
   gameNames,
   type Listing,
 } from "@/lib/catalog";
@@ -60,11 +61,11 @@ export default function Catalog({
       aria-labelledby="catalog-title"
     >
       <div className="section-heading">
-        <h2 id="catalog-title">In the display</h2>
+        <h2 id="catalog-title">Catálogo</h2>
         <div
           className="display-tabs"
           role="tablist"
-          aria-label="Display collection"
+          aria-label="Colección del catálogo"
         >
           <button
             id="featured-tab"
@@ -80,7 +81,7 @@ export default function Catalog({
               }
             }}
           >
-            Featured picks
+            Destacadas
           </button>
           <button
             id="sealed-tab"
@@ -96,24 +97,25 @@ export default function Catalog({
               }
             }}
           >
-            Sealed favorites
+            Productos sellados
           </button>
         </div>
         <button
           className="view-all"
           onClick={() => setViewAll((value) => !value)}
         >
-          {viewAll ? "Show featured" : "View all"}
+          {viewAll ? "Ver destacadas" : "Ver todo"}
           <ArrowRight size={21} />
         </button>
       </div>
       {(query || game !== "all" || kind !== "all") && (
         <div className="filter-summary">
           <span>
-            {items.length} {items.length === 1 ? "result" : "results"}
-            {query && ` for “${query}”`}
+            {items.length} {items.length === 1 ? "resultado" : "resultados"}
+            {query && ` para “${query}”`}
             {game !== "all" && ` · ${gameNames[game]}`}
-            {kind !== "all" && ` · ${kind === "single" ? "Singles" : "Sealed"}`}
+            {kind !== "all" &&
+              ` · ${kind === "single" ? "Singles" : "Sellados"}`}
           </span>
           <button
             onClick={() => {
@@ -123,7 +125,7 @@ export default function Catalog({
               setTab("featured");
             }}
           >
-            Clear filters <X size={14} />
+            Limpiar filtros <X size={14} />
           </button>
         </div>
       )}
@@ -137,7 +139,7 @@ export default function Catalog({
           <article className="product" key={item.id}>
             <button
               className="product-art-button"
-              aria-label={`View ${item.card_printings?.canonical_name}`}
+              aria-label={`Ver ${item.card_printings?.canonical_name}`}
               onClick={() => setSelected(item)}
             >
               <ProductArt item={item} />
@@ -156,7 +158,9 @@ export default function Catalog({
                 </span>
                 <span>{item.card_printings?.set_name}</span>
                 <span className="product-condition">
-                  {item.kind === "sealed" ? "Sealed Product" : item.condition}
+                  {item.kind === "sealed"
+                    ? "Producto sellado"
+                    : variantLabel(item.condition)}
                 </span>
               </div>
               <strong className="price">
@@ -168,7 +172,7 @@ export default function Catalog({
                 onClick={() => add(item)}
               >
                 <ShoppingCart size={19} weight="light" />
-                {item.quantity > 0 ? "Add to cart" : "Out of stock"}
+                {item.quantity > 0 ? "Agregar" : "Agotado"}
               </button>
             </div>
           </article>
@@ -177,8 +181,8 @@ export default function Catalog({
       {shown.length === 0 && (
         <div className="empty">
           <MagnifyingGlass size={35} weight="light" />
-          <h3>No cards found.</h3>
-          <p>Try another card, set, or game.</p>
+          <h3>No se encontraron cartas.</h3>
+          <p>Prueba otra carta o set.</p>
           <button
             className="button secondary"
             onClick={() => {
@@ -188,14 +192,14 @@ export default function Catalog({
               setTab("featured");
             }}
           >
-            Reset filters
+            Limpiar filtros
           </button>
         </div>
       )}
       {isDisplay && (
         <p className="display-disclaimer">
-          {unavailable && "Inventory unavailable. "}Illustrative products &
-          prices.
+          {unavailable && "Inventario no disponible. "}Productos y precios de
+          referencia.
         </p>
       )}
       <dialog
@@ -212,7 +216,7 @@ export default function Catalog({
           <div className="product-detail">
             <button
               className="icon-button detail-close"
-              aria-label="Close product details"
+              aria-label="Cerrar detalles de la carta"
               onClick={() => setSelected(null)}
             >
               <X size={23} />
@@ -230,17 +234,17 @@ export default function Catalog({
               <p className="muted">{selected.card_printings?.set_name}</p>
               <dl className="variant-details">
                 <div>
-                  <dt>Condition</dt>
-                  <dd>{selected.condition}</dd>
+                  <dt>Condición</dt>
+                  <dd>{variantLabel(selected.condition)}</dd>
                 </div>
                 <div>
-                  <dt>Language</dt>
-                  <dd>{selected.card_printings?.language}</dd>
+                  <dt>Idioma</dt>
+                  <dd>{variantLabel(selected.card_printings?.language)}</dd>
                 </div>
                 {selected.finish && (
                   <div>
-                    <dt>Finish</dt>
-                    <dd>{selected.finish}</dd>
+                    <dt>Acabado</dt>
+                    <dd>{variantLabel(selected.finish)}</dd>
                   </div>
                 )}
               </dl>
@@ -256,12 +260,12 @@ export default function Catalog({
                 }}
               >
                 <ShoppingCart size={20} />
-                Add to cart
+                Agregar
               </button>
               <p className="small-note">
                 {selected.sample
-                  ? "Illustrative price. Confirm availability."
-                  : "Adding to your cart doesn't reserve this card."}
+                  ? "Precio de referencia. Confirma disponibilidad."
+                  : "Agregar al carrito no reserva esta carta."}
               </p>
             </div>
           </div>

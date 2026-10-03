@@ -10,7 +10,7 @@ import {
   Storefront,
   X,
 } from "@phosphor-icons/react";
-import { formatPrice } from "@/lib/catalog";
+import { formatPrice, variantLabel } from "@/lib/catalog";
 import { Brand } from "./site-header";
 
 export type InventoryRow = {
@@ -59,16 +59,16 @@ export default function Inventory({
       return `"${(/^[=+\-@\t\r]/.test(text) ? "'" + text : text).replaceAll('"', '""')}"`;
     };
     const headers = [
-      "Listing ID",
-      "Card",
+      "ID del listado",
+      "Carta",
       "Set",
-      "Number",
-      "Condition",
-      "Language",
-      "Finish",
-      "Quantity",
-      "Price CRC",
-      "Published",
+      "Número",
+      "Condición",
+      "Idioma",
+      "Acabado",
+      "Cantidad",
+      "Precio CRC",
+      "Publicado",
     ];
     const lines = filtered.map((row) =>
       [
@@ -104,43 +104,43 @@ export default function Inventory({
           <Brand />
           <a href="/" className="storefront-link">
             <Storefront size={19} />
-            View storefront <ArrowUpRight size={15} />
+            Ver tienda <ArrowUpRight size={15} />
           </a>
         </div>
-        <nav className="wide admin-nav" aria-label="Admin workspace">
+        <nav className="wide admin-nav" aria-label="Administración">
           <button
             aria-current={section === "overview" ? "page" : undefined}
             onClick={() => setSection("overview")}
           >
             <SquaresFour size={18} />
-            Overview
+            Resumen
           </button>
           <button
             aria-current={section === "inventory" ? "page" : undefined}
             onClick={() => setSection("inventory")}
           >
             <Stack size={18} />
-            Inventory
+            Inventario
           </button>
         </nav>
       </header>
       <div className="admin-breadcrumb">
         <div className="wide">
           <span>vego.singles / Admin</span>
-          <span className="workspace-badge">Inventory workspace</span>
+          <span className="workspace-badge">Administración</span>
         </div>
       </div>
       <div className="wide admin-content">
         <div className="inventory-heading">
           <div>
             <span className="eyebrow">
-              {section === "inventory" ? "Every copy counts" : "Overview"}
+              {section === "inventory" ? "Cada copia cuenta" : "Resumen"}
             </span>
-            <h1>{section === "inventory" ? "Inventory." : "Overview."}</h1>
+            <h1>{section === "inventory" ? "Inventario." : "Resumen."}</h1>
             <p className="muted">
               {section === "inventory"
-                ? "Each condition, language, and finish is its own variant."
-                : "Your inventory at a glance."}
+                ? "Cada condición, idioma y acabado es una variante."
+                : "Resumen del inventario."}
             </p>
           </div>
           {section === "inventory" && (
@@ -150,29 +150,28 @@ export default function Inventory({
               onClick={exportCSV}
             >
               <DownloadSimple size={19} />
-              Export CSV
+              Exportar CSV
             </button>
           )}
         </div>
         {unavailable && (
           <div className="inventory-alert" role="alert">
-            Inventory couldn't be loaded. Please try again before making
-            changes.
+            No se pudo cargar el inventario. Intenta de nuevo.
           </div>
         )}
         {section === "overview" ? (
           <>
             <div className="stats">
               <div className="stat">
-                <span>Total listings</span>
+                <span>Listados</span>
                 <strong>{counts.listings}</strong>
               </div>
               <div className="stat">
-                <span>Unpublished drafts</span>
+                <span>Borradores</span>
                 <strong>{counts.drafts}</strong>
               </div>
               <div className="stat">
-                <span>Pending prices</span>
+                <span>Precios pendientes</span>
                 <strong>{counts.proposals}</strong>
               </div>
             </div>
@@ -181,7 +180,7 @@ export default function Inventory({
                 className="button"
                 onClick={() => setSection("inventory")}
               >
-                Review inventory <ArrowUpRight size={18} />
+                Revisar inventario <ArrowUpRight size={18} />
               </button>
             </div>
           </>
@@ -191,15 +190,15 @@ export default function Inventory({
               <label className="inventory-search">
                 <MagnifyingGlass size={23} weight="light" />
                 <input
-                  aria-label="Search inventory by product or listing ID"
-                  placeholder="Search by product or listing ID"
+                  aria-label="Buscar en el inventario por carta o ID"
+                  placeholder="Buscar por carta o ID"
                   value={query}
                   onChange={(event) => setQuery(event.target.value)}
                 />
                 {query && (
                   <button
                     className="icon-button"
-                    aria-label="Clear inventory search"
+                    aria-label="Limpiar búsqueda"
                     onClick={() => setQuery("")}
                   >
                     <X size={17} />
@@ -207,49 +206,49 @@ export default function Inventory({
                 )}
               </label>
               <label className="filter-field">
-                Status
+                Estado
                 <select
                   value={status}
                   onChange={(event) => setStatus(event.target.value)}
                 >
-                  <option value="all">All listings</option>
-                  <option value="published">Published</option>
-                  <option value="draft">Drafts</option>
+                  <option value="all">Todos los listados</option>
+                  <option value="published">Publicado</option>
+                  <option value="draft">Borradores</option>
                 </select>
               </label>
               <label className="filter-field">
-                Stock
+                Existencias
                 <select
                   value={stock}
                   onChange={(event) => setStock(event.target.value)}
                 >
-                  <option value="all">All</option>
-                  <option value="in">In stock</option>
-                  <option value="out">Out of stock</option>
+                  <option value="all">Todos</option>
+                  <option value="in">Disponible</option>
+                  <option value="out">Agotado</option>
                 </select>
               </label>
             </div>
             <div className="table-caption">
               <span>
                 {filtered.length}{" "}
-                {filtered.length === 1 ? "variant" : "variants"}
+                {filtered.length === 1 ? "variante" : "variantes"}
               </span>
-              <span>Showing up to 100 inventory records</span>
+              <span>Hasta 100 registros de inventario</span>
             </div>
             <div
               className="tablewrap"
               tabIndex={0}
               role="region"
-              aria-label="Inventory table, scroll horizontally for more columns"
+              aria-label="Inventario; desplaza horizontalmente para ver más columnas"
             >
               <table>
                 <thead>
                   <tr>
-                    <th>Product / Listing</th>
-                    <th>Variant</th>
-                    <th>Stock</th>
-                    <th>Price</th>
-                    <th>Status</th>
+                    <th>Carta / Listado</th>
+                    <th>Variante</th>
+                    <th>Existencias</th>
+                    <th>Precio</th>
+                    <th>Estado</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -272,9 +271,10 @@ export default function Inventory({
                       </td>
                       <td>
                         <div className="variant-cell">
-                          {row.condition}
+                          {variantLabel(row.condition)}
                           <span>
-                            {row.language} · {row.finish}
+                            {variantLabel(row.language)} ·{" "}
+                            {variantLabel(row.finish)}
                           </span>
                         </div>
                       </td>
@@ -292,7 +292,7 @@ export default function Inventory({
                         <span
                           className={`status-badge ${row.published ? "published" : "draft"}`}
                         >
-                          {row.published ? "Published" : "Draft"}
+                          {row.published ? "Publicado" : "Borrador"}
                         </span>
                       </td>
                     </tr>
@@ -304,15 +304,15 @@ export default function Inventory({
                   <Stack size={36} weight="light" />
                   <h3>
                     {rows.length
-                      ? "No matching inventory."
-                      : "No inventory to display."}
+                      ? "No se encontraron cartas."
+                      : "No hay inventario para mostrar."}
                   </h3>
                   <p>
                     {rows.length
-                      ? "Try another search or filter."
+                      ? "Prueba otra búsqueda o filtro."
                       : unavailable
-                        ? "Check the database connection and retry."
-                        : "Your inventory will appear here once added."}
+                        ? "Revisa la conexión e intenta de nuevo."
+                        : "El inventario aparecerá aquí al agregarlo."}
                   </p>
                   {rows.length > 0 && (
                     <button
@@ -323,7 +323,7 @@ export default function Inventory({
                         setStatus("all");
                       }}
                     >
-                      Clear filters
+                      Limpiar filtros
                     </button>
                   )}
                 </div>

@@ -20,7 +20,7 @@ The user authorized implementation with browser verification unavailable. Cloud 
 - Spacing/layout: two-column desktop hero, stacked mobile hero, desktop horizontal display cards, two-column mobile cards, horizontal scrolling inventory table. Browser overflow check pending.
 - Colors: white and light gray backgrounds, near-black text, red primary actions, muted purple tab indicators. Rendered contrast check pending.
 - Images: supplied product photograph and card imagery are reused as cropped raster views from the reference. No artwork is approximated with HTML or SVG. Exact image crop and image quality comparison pending.
-- Copy/content: reference storefront headings retained. Checkout uses the existing WhatsApp availability flow. Example products are explicitly labeled and do not claim to be published stock. Admin rows remain protected live database records.
+- Copy/content: the original Spanish storefront headline and description are restored; new controls and accessibility labels are in Spanish. Checkout uses the existing WhatsApp availability flow. Example products are explicitly labeled and do not claim to be published stock. Admin rows remain protected live database records.
 
 ## Findings
 
@@ -47,3 +47,7 @@ No visual comparisons were performed. HTTP and DOM checks are functional evidenc
 - Production server checks passed: storefront HTTP 200 with correctly labeled display examples, login HTTP 200 with sign-in form, unauthenticated admin HTTP 307 to login, reference raster HTTP 200.
 - Current injected Supabase URL is still invalid; the public URL was overridden for the production build/start checks. No successful live database or authenticated inventory check is claimed.
 - Visual QA remains blocked; functional checks do not establish screenshot fidelity.
+
+## Spanish wording update
+
+The user requested the original Spanish wording. The original homepage headline/description were restored, controls and variant labels were translated, and the document language is `es`. Hero paragraph wrapping was adjusted for the longer original copy. Production build, TypeScript, and all 6 interaction tests passed; browser visual QA remains blocked.

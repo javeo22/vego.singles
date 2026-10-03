@@ -25,22 +25,25 @@ export default async function Home() {
     <main id="main-content">
       <section className="hero" aria-labelledby="hero-title">
         <div className="hero-copy">
-          <h1 id="hero-title">
-            Your next
+          <h1 id="hero-title" aria-label="Tu próxima carta está aquí.">
+            Tu próxima
             <br />
-            <span>great pull</span>
+            <span>carta está</span>
             <br />
-            starts here.
+            aquí.
           </h1>
-          <p>Singles worth chasing. Sealed ready to crack.</p>
+          <p>
+            Pokémon y Magic en inglés, español, japonés y chino. Consulta
+            disponibilidad y completa tu compra por WhatsApp.
+          </p>
           <a className="button hero-button" href="#catalogo">
-            Browse the shop <ArrowRight size={24} weight="light" />
+            Ver catálogo <ArrowRight size={24} weight="light" />
           </a>
         </div>
         <div className="hero-art">
           <img
             src="/images/reference-display.jpg"
-            alt="Charizard, Sol Ring, and Stitch cards displayed alongside Pokémon, Lorcana, and Star Wars booster boxes"
+            alt="Cartas de Charizard, Sol Ring y Stitch junto a cajas de Pokémon, Lorcana y Star Wars"
             className="hero-reference-image"
           />
         </div>

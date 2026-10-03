@@ -28,7 +28,7 @@ export default function ProductArt({ item }: { item: Listing }) {
       >
         <img
           src="/images/reference-display.jpg"
-          alt={printing?.canonical_name || "Trading card"}
+          alt={printing?.canonical_name || "Carta"}
           style={{
             width: `${(1280 / crop.w) * 100}%`,
             left: `${(-crop.x / crop.w) * 100}%`,
@@ -41,7 +41,7 @@ export default function ProductArt({ item }: { item: Listing }) {
   return (
     <div className="art-unavailable">
       <ImageSquare size={30} weight="light" aria-hidden="true" />
-      <span>Image coming soon</span>
+      <span>Sin imagen</span>
     </div>
   );
 }

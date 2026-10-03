@@ -11,29 +11,29 @@ export default function SiteFooter() {
       <div className="wide footer-main">
         <div>
           <Brand />
-          <p>For the love of the game.</p>
+          <p>Por amor al juego.</p>
         </div>
         <div className="footer-info">
-          <h3>Shipping & pickup</h3>
+          <h3>Envíos y retiro</h3>
           <p>
-            Duelist Kingdom delivery: ₡500.
+            Red Duelist Kingdom: ₡500 adicionales.
             <br />
-            Other delivery fees confirmed on WhatsApp.
+            Envío inmediato con costo por confirmar.
           </p>
         </div>
         <div className="footer-info">
-          <h3>Here to help</h3>
+          <h3>Contacto</h3>
           <a href="https://wa.me/50671141906" target="_blank" rel="noreferrer">
-            Contact us <ArrowUpRight size={15} />
+            WhatsApp <ArrowUpRight size={15} />
           </a>
-          <a href="/login">Account & admin</a>
+          <a href="/login">Administración</a>
         </div>
       </div>
       <div className="wide footer-bottom">
         <span>© {new Date().getFullYear()} Vego Singles</span>
         <span>
-          Adding to your cart doesn't reserve a card. Availability is confirmed
-          before purchase.
+          Agregar una carta al carrito no la reserva; la disponibilidad final se
+          confirma por WhatsApp.
         </span>
       </div>
     </footer>

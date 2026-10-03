@@ -70,8 +70,13 @@ test("catalog search filters by card and reset restores the display", async () =
   assert.doesNotMatch(products.textContent || "", /Charizard ex/);
   await user.clear(screen.getByLabelText("Test search"));
   await user.type(screen.getByLabelText("Test search"), "missing card");
-  assert.ok(screen.getByText("No cards found."));
-  await user.click(screen.getByRole("button", { name: "Reset filters" }));
+  assert.ok(screen.getByText("No se encontraron cartas."));
+  const emptyState = screen.getByRole("heading", {
+    name: "No se encontraron cartas.",
+  }).parentElement!;
+  await user.click(
+    within(emptyState).getByRole("button", { name: "Limpiar filtros" }),
+  );
   assert.equal(
     within(screen.getByRole("tabpanel")).getAllByRole("article").length,
     4,
@@ -80,7 +85,7 @@ test("catalog search filters by card and reset restores the display", async () =
 
 test("sealed collection isolates sealed products and keyboard returns to featured", async () => {
   const user = shop();
-  await user.click(screen.getByRole("tab", { name: "Sealed favorites" }));
+  await user.click(screen.getByRole("tab", { name: "Productos sellados" }));
   assert.equal(
     within(screen.getByRole("tabpanel")).getAllByRole("article").length,
     1,
@@ -92,7 +97,7 @@ test("sealed collection isolates sealed products and keyboard returns to feature
   await user.keyboard("{ArrowLeft}");
   assert.equal(
     screen
-      .getByRole("tab", { name: "Featured picks" })
+      .getByRole("tab", { name: "Destacadas" })
       .getAttribute("aria-selected"),
     "true",
   );
@@ -106,24 +111,24 @@ test("cart enforces available stock, updates totals, removes items, and unlocks 
     quantity: 3,
   };
   const user = shop([fixture]);
-  await user.click(screen.getByRole("button", { name: "Add to cart" }));
+  await user.click(screen.getByRole("button", { name: "Agregar" }));
   await user.click(screen.getByRole("button", { name: "Open cart" }));
-  const cart = screen.getByRole("dialog", { name: "Your cart." });
+  const cart = screen.getByRole("dialog", { name: "Tu carrito." });
   assert.equal(document.body.style.overflow, "hidden");
   await user.click(
     within(cart).getByRole("button", {
-      name: "Increase Charizard ex quantity",
+      name: "Aumentar cantidad de Charizard ex",
     }),
   );
   await user.click(
     within(cart).getByRole("button", {
-      name: "Increase Charizard ex quantity",
+      name: "Aumentar cantidad de Charizard ex",
     }),
   );
   assert.equal(
     (
       within(cart).getByRole("button", {
-        name: "Increase Charizard ex quantity",
+        name: "Aumentar cantidad de Charizard ex",
       }) as HTMLButtonElement
     ).disabled,
     true,
@@ -131,7 +136,7 @@ test("cart enforces available stock, updates totals, removes items, and unlocks 
   assert.equal(within(cart).getAllByText("₡36,900").length, 3);
   await user.click(
     within(cart).getByRole("button", {
-      name: "Decrease Charizard ex quantity",
+      name: "Reducir cantidad de Charizard ex",
     }),
   );
   assert.equal(within(cart).getAllByText("₡24,600").length, 3);
@@ -141,22 +146,24 @@ test("cart enforces available stock, updates totals, removes items, and unlocks 
     return null;
   }) as typeof dom.window.open;
   await user.click(
-    within(cart).getByRole("button", { name: "Continue on WhatsApp" }),
+    within(cart).getByRole("button", { name: "Comprar por WhatsApp" }),
   );
   const checkout = new URL(opened);
   assert.equal(checkout.hostname, "wa.me");
   assert.match(checkout.searchParams.get("text") || "", /2x Charizard ex/);
   assert.match(checkout.searchParams.get("text") || "", /Subtotal: ₡24,600/);
-  await user.click(within(cart).getByRole("button", { name: "Remove" }));
-  assert.ok(within(cart).getByText("Your next great find is waiting."));
-  await user.click(within(cart).getByRole("button", { name: "Close cart" }));
+  await user.click(within(cart).getByRole("button", { name: "Quitar" }));
+  assert.ok(within(cart).getByText("Tu carrito está vacío."));
+  await user.click(
+    within(cart).getByRole("button", { name: "Cerrar carrito" }),
+  );
   assert.equal(document.body.style.overflow, "");
 });
 
 test("display examples remain labeled and generate an availability inquiry", async () => {
   const user = shop([]);
-  assert.ok(screen.getByText(/Illustrative products & prices/));
-  await user.click(screen.getAllByRole("button", { name: "Add to cart" })[0]);
+  assert.ok(screen.getByText(/Productos y precios de referencia/));
+  await user.click(screen.getAllByRole("button", { name: "Agregar" })[0]);
   await user.click(screen.getByRole("button", { name: "Open cart" }));
   let opened = "";
   dom.window.open = ((url: string) => {
@@ -164,7 +171,7 @@ test("display examples remain labeled and generate an availability inquiry", asy
     return null;
   }) as typeof dom.window.open;
   await user.click(
-    screen.getByRole("button", { name: "Ask about these cards" }),
+    screen.getByRole("button", { name: "Consultar disponibilidad" }),
   );
   assert.match(
     new URL(opened).searchParams.get("text") || "",
@@ -174,11 +181,13 @@ test("display examples remain labeled and generate an availability inquiry", asy
 
 test("product details expose the variant and add the selected card", async () => {
   const user = shop();
-  await user.click(screen.getByRole("button", { name: "View Sol Ring" }));
+  await user.click(screen.getByRole("button", { name: "Ver Sol Ring" }));
   const detail = screen.getByRole("dialog", { name: "Sol Ring" });
-  assert.ok(within(detail).getByText("Non-foil"));
-  await user.click(within(detail).getByRole("button", { name: "Add to cart" }));
-  assert.ok(screen.getByRole("status").textContent?.includes("Sol Ring added"));
+  assert.ok(within(detail).getByText("Sin foil"));
+  await user.click(within(detail).getByRole("button", { name: "Agregar" }));
+  assert.ok(
+    screen.getByRole("status").textContent?.includes("Sol Ring agregado"),
+  );
   assert.equal(screen.queryByRole("dialog", { name: "Sol Ring" }), null);
 });
 
@@ -213,18 +222,18 @@ test("inventory stock/status filters and overview use supplied live records", as
       unavailable={false}
     />,
   );
-  await user.selectOptions(screen.getByLabelText("Stock"), "in");
+  await user.selectOptions(screen.getByLabelText("Existencias"), "in");
   assert.ok(screen.getByText("Charizard ex"));
   assert.equal(screen.queryByText("Sol Ring"), null);
-  await user.selectOptions(screen.getByLabelText("Status"), "draft");
-  assert.ok(screen.getByText("No matching inventory."));
-  await user.click(screen.getByRole("button", { name: "Clear filters" }));
+  await user.selectOptions(screen.getByLabelText("Estado"), "draft");
+  assert.ok(screen.getByText("No se encontraron cartas."));
+  await user.click(screen.getByRole("button", { name: "Limpiar filtros" }));
   assert.ok(screen.getByText("Sol Ring"));
   await user.type(
-    screen.getByLabelText("Search inventory by product or listing ID"),
+    screen.getByLabelText("Buscar en el inventario por carta o ID"),
     "151",
   );
   assert.equal(screen.getAllByText("151").length, 2);
-  await user.click(screen.getByRole("button", { name: "Overview" }));
-  assert.ok(screen.getByText("Unpublished drafts"));
+  await user.click(screen.getByRole("button", { name: "Resumen" }));
+  assert.ok(screen.getByText("Borradores"));
 });

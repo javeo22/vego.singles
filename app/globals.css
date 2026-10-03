@@ -296,13 +296,13 @@ h3 {
   border-bottom: 1px solid var(--line);
 }
 .hero-copy {
-  padding: 45px 0 45px 38px;
+  padding: 30px 0 30px 38px;
   z-index: 1;
   align-self: center;
 }
 .hero h1 {
   margin: 0 0 25px;
-  font-size: clamp(50px, 5.65vw, 82px);
+  font-size: clamp(46px, 5vw, 72px);
   font-weight: 900;
   line-height: 0.98;
   letter-spacing: -0.062em;
@@ -313,8 +313,9 @@ h3 {
 }
 .hero-copy p {
   margin-bottom: 24px;
-  white-space: nowrap;
-  font-size: clamp(14px, 1.45vw, 20px);
+  max-width: 360px;
+  white-space: normal;
+  font-size: 15px;
   letter-spacing: -0.025em;
 }
 .hero-button {
@@ -1242,10 +1243,10 @@ tr:last-child td {
 }
 @media (min-width: 1441px) {
   .hero h1 {
-    font-size: 82px;
+    font-size: 72px;
   }
   .hero-copy p {
-    font-size: 20px;
+    font-size: 15px;
   }
 }
 @media (max-width: 1100px) {

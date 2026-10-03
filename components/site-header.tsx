@@ -11,7 +11,7 @@ import { useShop } from "./shop-provider";
 
 export function Brand() {
   return (
-    <a className="brand" href="/" aria-label="Vego Singles home">
+    <a className="brand" href="/" aria-label="Vego Singles — Inicio">
       vego<span>.</span>singles
     </a>
   );
@@ -35,7 +35,7 @@ export default function SiteHeader() {
     <>
       <div className="announcement">
         <div className="wide">
-          <span>Collect here. Play anywhere.</span>
+          <span>Singles · Costa Rica</span>
           <span>
             Costa Rica · <b>CRC</b>
           </span>
@@ -58,8 +58,8 @@ export default function SiteHeader() {
           >
             <MagnifyingGlass size={23} weight="light" aria-hidden="true" />
             <input
-              aria-label="Search cards, sets, and sealed products"
-              placeholder="Search cards, sets, and sealed products"
+              aria-label="Buscar carta o set…"
+              placeholder="Buscar carta o set…"
               value={query}
               onChange={(event) => setQuery(event.target.value)}
             />
@@ -69,23 +69,25 @@ export default function SiteHeader() {
                 className="clear-search"
                 onClick={() => setQuery("")}
               >
-                Clear
+                Limpiar
               </button>
             )}
           </form>
           <div className="header-actions">
             <a href="/login" className="account-link">
               <User size={26} weight="light" />
-              <span>Account</span>
+              <span>Cuenta</span>
             </a>
             <span className="header-divider" />
             <button className="cart-trigger" onClick={() => setCartOpen(true)}>
               <ShoppingCart size={27} weight="light" />
-              <span>Cart ({cart.reduce((n, line) => n + line.count, 0)})</span>
+              <span>
+                Carrito ({cart.reduce((n, line) => n + line.count, 0)})
+              </span>
             </button>
           </div>
         </div>
-        <nav className="category-nav wide" aria-label="Shop categories">
+        <nav className="category-nav wide" aria-label="Categorías">
           <div className="game-links">
             {Object.entries(gameNames).map(([key, name]) => (
               <button
@@ -115,7 +117,7 @@ export default function SiteHeader() {
                 navigateFilter(kind === "sealed" ? "all" : "sealed", "kind")
               }
             >
-              Sealed
+              Sellados
             </button>
           </div>
         </nav>
@@ -123,7 +125,7 @@ export default function SiteHeader() {
       {pathname === "/login" && (
         <div className="wide login-breadcrumb">
           <a href="/">
-            <ArrowLeft size={16} /> Back to the shop
+            <ArrowLeft size={16} /> Volver al catálogo
           </a>
         </div>
       )}

@@ -98,3 +98,32 @@ export const displayExamples: Listing[] = [
     },
   },
 ];
+
+const variantLabels: Record<string, string> = {
+  "near mint": "Casi nueva",
+  near_mint: "Casi nueva",
+  "lightly played": "Poco uso",
+  lightly_played: "Poco uso",
+  "moderately played": "Uso moderado",
+  moderately_played: "Uso moderado",
+  "heavily played": "Mucho uso",
+  heavily_played: "Mucho uso",
+  damaged: "Dañada",
+  english: "Inglés",
+  spanish: "Español",
+  japanese: "Japonés",
+  chinese: "Chino",
+  en: "Inglés",
+  es: "Español",
+  ja: "Japonés",
+  zh: "Chino",
+  unknown: "Por confirmar",
+  foil: "Foil",
+  "non-foil": "Sin foil",
+  nonfoil: "Sin foil",
+  "sealed product": "Producto sellado",
+};
+export function variantLabel(value: string | null | undefined) {
+  if (!value) return "";
+  return variantLabels[value.trim().toLowerCase()] || value;
+}

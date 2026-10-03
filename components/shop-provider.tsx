@@ -51,8 +51,8 @@ export default function ShopProvider({ children }: { children: ReactNode }) {
     if (current && current.count >= item.quantity) {
       setToast(
         item.sample
-          ? "This display example is already in your cart."
-          : "You've added all available copies.",
+          ? "Esta carta de referencia ya está en tu carrito."
+          : "Ya agregaste todas las copias disponibles.",
       );
     } else {
       setCart((lines) => {
@@ -65,7 +65,7 @@ export default function ShopProvider({ children }: { children: ReactNode }) {
             )
           : [...lines, { item, count: 1 }];
       });
-      setToast(`${item.card_printings?.canonical_name} added to your cart`);
+      setToast(`${item.card_printings?.canonical_name} agregado al carrito`);
     }
     if (timeout.current) clearTimeout(timeout.current);
     timeout.current = setTimeout(() => setToast(""), 4500);
