@@ -155,9 +155,7 @@ test("cart enforces available stock, updates totals, removes items, and unlocks 
 
 test("display examples remain labeled and generate an availability inquiry", async () => {
   const user = shop([]);
-  assert.ok(
-    screen.getByText(/These are display examples with reference prices/),
-  );
+  assert.ok(screen.getByText(/Illustrative products & prices/));
   await user.click(screen.getAllByRole("button", { name: "Add to cart" })[0]);
   await user.click(screen.getByRole("button", { name: "Open cart" }));
   let opened = "";

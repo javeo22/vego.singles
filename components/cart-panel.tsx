@@ -150,8 +150,8 @@ export default function CartPanel() {
                 <p className="checkout-caption">No account needed.</p>
                 <p className="checkout-note">
                   {samples
-                    ? "Display examples and reference prices. Availability and final prices must be confirmed."
-                    : "Your cart doesn't reserve cards. Confirm availability and delivery before purchase."}
+                    ? "Illustrative prices. Confirm availability on WhatsApp."
+                    : "Confirm availability and delivery on WhatsApp."}
                 </p>
               </section>
             </>

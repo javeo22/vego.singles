@@ -29,21 +29,15 @@ export default function Login() {
   return (
     <main id="main-content" className="login-page wide">
       <section className="login-card">
-        <span className="eyebrow">Welcome back, collector</span>
         <h1>
           Your account<span>.</span>
         </h1>
-        <p className="muted">
-          Sign in with your authorized email to manage the display.
-        </p>
+        <p className="muted">Sign in with your authorized email.</p>
         {sent ? (
           <div className="login-success" role="status">
             <CheckCircle size={35} />
             <h2>Check your inbox.</h2>
-            <p>
-              Revisa tu correo para iniciar sesión. Your sign-in link is on its
-              way.
-            </p>
+            <p>Revisa tu correo para iniciar sesión.</p>
             <button className="button secondary" onClick={() => setSent(false)}>
               Use another email
             </button>
@@ -73,9 +67,6 @@ export default function Login() {
               {pending ? "Sending your link…" : "Send sign-in link"}
               <ArrowRight size={20} />
             </button>
-            <p className="small-note">
-              No password to remember. Just a secure link in your inbox.
-            </p>
           </form>
         )}
       </section>

@@ -134,15 +134,13 @@ export default function Inventory({
         <div className="inventory-heading">
           <div>
             <span className="eyebrow">
-              {section === "inventory"
-                ? "Every copy counts"
-                : "A look behind the display"}
+              {section === "inventory" ? "Every copy counts" : "Overview"}
             </span>
             <h1>{section === "inventory" ? "Inventory." : "Overview."}</h1>
             <p className="muted">
               {section === "inventory"
                 ? "Each condition, language, and finish is its own variant."
-                : "Your cards, your collection, your next great sale."}
+                : "Your inventory at a glance."}
             </p>
           </div>
           {section === "inventory" && (
@@ -179,11 +177,6 @@ export default function Inventory({
               </div>
             </div>
             <div className="overview-note">
-              <h2>Ready for the display?</h2>
-              <p>
-                Review each card's language, location, and catalog match before
-                publishing it.
-              </p>
               <button
                 className="button"
                 onClick={() => setSection("inventory")}

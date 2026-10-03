@@ -2,7 +2,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   ArrowRight,
-  ArrowUpRight,
   MagnifyingGlass,
   ShoppingCart,
   X,
@@ -195,19 +194,10 @@ export default function Catalog({
       )}
       {isDisplay && (
         <p className="display-disclaimer">
-          {unavailable
-            ? "Live inventory is temporarily unavailable."
-            : "New inventory is on the way."}{" "}
-          These are display examples with reference prices. Ask us about
-          availability.
+          {unavailable && "Inventory unavailable. "}Illustrative products &
+          prices.
         </p>
       )}
-      <div className="shop-note">
-        <span>Every card has a story. Find your next one.</span>
-        <a href="https://wa.me/50671141906" target="_blank" rel="noreferrer">
-          Looking for something specific? <ArrowUpRight size={17} />
-        </a>
-      </div>
       <dialog
         ref={detail}
         className="product-dialog"
@@ -270,8 +260,8 @@ export default function Catalog({
               </button>
               <p className="small-note">
                 {selected.sample
-                  ? "Display example. Please confirm availability and price."
-                  : "Availability is confirmed on WhatsApp. Adding to your cart doesn't reserve this card."}
+                  ? "Illustrative price. Confirm availability."
+                  : "Adding to your cart doesn't reserve this card."}
               </p>
             </div>
           </div>
