@@ -1,3 +1,44 @@
-import {redirect} from "next/navigation";import {createClient} from "@/lib/supabase/server";
-export const dynamic="force-dynamic";
-export default async function Admin(){const supabase=await createClient();const {data:{user}}=await supabase.auth.getUser();if(!user)redirect("/login");const allow=(process.env.ADMIN_EMAILS||"").split(",").map(x=>x.trim().toLowerCase());if(!user.email||!allow.includes(user.email.toLowerCase()))redirect("/");const [{count:listings},{count:drafts},{count:proposals},{data:rows}]=await Promise.all([supabase.from("listings").select("*",{count:"exact",head:true}),supabase.from("listings").select("*",{count:"exact",head:true}).eq("published",false),supabase.from("price_proposals").select("*",{count:"exact",head:true}).eq("status","pending"),supabase.from("admin_inventory").select("*").limit(100)]);return <main className="admin"><aside className="sidebar"><b>VEGO ADMIN</b><a href="/admin">Resumen</a><a href="/admin">Inventario</a><a href="/admin">Precios</a><a href="/admin">Solicitudes</a></aside><section className="content"><div className="eyebrow">Panel administrativo</div><h2>Hola, {user.email}</h2><div className="stats"><div className="stat"><span>Listados</span><strong>{listings||0}</strong></div><div className="stat"><span>Borradores</span><strong>{drafts||0}</strong></div><div className="stat"><span>Precios pendientes</span><strong>{proposals||0}</strong></div></div><div className="notice">Los 85 registros iniciales se importan como borradores hasta asignar idioma, ubicación y coincidencia exacta de catálogo.</div><div className="tablewrap"><table><thead><tr><th>Carta</th><th>Set</th><th>Condición</th><th>Cantidad</th><th>Mercado</th><th>Estado</th></tr></thead><tbody>{(rows||[]).map((r:any)=><tr key={r.listing_id}><td>{r.canonical_name}</td><td>{r.set_name}</td><td>{r.condition}</td><td>{r.quantity}</td><td>${Number(r.market_price_usd||0).toFixed(2)}</td><td>{r.published?"Publicado":"Borrador"}</td></tr>)}</tbody></table></div></section></main>}
+import { redirect } from "next/navigation";
+import Inventory, { type InventoryRow } from "@/components/inventory";
+import { createClient } from "@/lib/supabase/server";
+export const dynamic = "force-dynamic";
+export default async function Admin() {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) redirect("/login");
+  const allow = (process.env.ADMIN_EMAILS || "")
+    .split(",")
+    .map((value) => value.trim().toLowerCase());
+  if (!user.email || !allow.includes(user.email.toLowerCase())) redirect("/");
+  const [listings, drafts, proposals, inventory] = await Promise.all([
+    supabase.from("listings").select("*", { count: "exact", head: true }),
+    supabase
+      .from("listings")
+      .select("*", { count: "exact", head: true })
+      .eq("published", false),
+    supabase
+      .from("price_proposals")
+      .select("*", { count: "exact", head: true })
+      .eq("status", "pending"),
+    supabase
+      .from("admin_inventory")
+      .select("*")
+      .order("canonical_name")
+      .limit(100),
+  ]);
+  return (
+    <Inventory
+      rows={(inventory.data || []) as InventoryRow[]}
+      counts={{
+        listings: listings.count || 0,
+        drafts: drafts.count || 0,
+        proposals: proposals.count || 0,
+      }}
+      unavailable={Boolean(
+        listings.error || drafts.error || proposals.error || inventory.error,
+      )}
+    />
+  );
+}

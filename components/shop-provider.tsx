@@ -1,0 +1,104 @@
+"use client";
+import {
+  createContext,
+  useContext,
+  useEffect,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react";
+import type { Listing } from "@/lib/catalog";
+
+export type CartLine = { item: Listing; count: number };
+type ShopState = {
+  query: string;
+  setQuery: (value: string) => void;
+  game: string;
+  setGame: (value: string) => void;
+  kind: string;
+  setKind: (value: string) => void;
+  cart: CartLine[];
+  add: (item: Listing) => void;
+  changeCount: (id: string, count: number) => void;
+  cartOpen: boolean;
+  setCartOpen: (open: boolean) => void;
+  toast: string;
+  dismissToast: () => void;
+};
+const ShopContext = createContext<ShopState | null>(null);
+export function useShop() {
+  const context = useContext(ShopContext);
+  if (!context) throw new Error("Shop controls must be inside ShopProvider");
+  return context;
+}
+export default function ShopProvider({ children }: { children: ReactNode }) {
+  const [query, setQuery] = useState("");
+  const [game, setGame] = useState("all");
+  const [kind, setKind] = useState("all");
+  const [cart, setCart] = useState<CartLine[]>([]);
+  const [cartOpen, setCartOpen] = useState(false);
+  const [toast, setToast] = useState("");
+  const timeout = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(
+    () => () => {
+      if (timeout.current) clearTimeout(timeout.current);
+    },
+    [],
+  );
+  const add = (item: Listing) => {
+    if (item.quantity <= 0) return;
+    const current = cart.find((line) => line.item.id === item.id);
+    if (current && current.count >= item.quantity) {
+      setToast(
+        item.sample
+          ? "This display example is already in your cart."
+          : "You've added all available copies.",
+      );
+    } else {
+      setCart((lines) => {
+        const found = lines.find((line) => line.item.id === item.id);
+        return found
+          ? lines.map((line) =>
+              line.item.id === item.id
+                ? { ...line, count: Math.min(line.count + 1, item.quantity) }
+                : line,
+            )
+          : [...lines, { item, count: 1 }];
+      });
+      setToast(`${item.card_printings?.canonical_name} added to your cart`);
+    }
+    if (timeout.current) clearTimeout(timeout.current);
+    timeout.current = setTimeout(() => setToast(""), 4500);
+  };
+  const changeCount = (id: string, count: number) =>
+    setCart((lines) =>
+      lines.flatMap((line) =>
+        line.item.id !== id
+          ? [line]
+          : count <= 0
+            ? []
+            : [{ ...line, count: Math.min(count, line.item.quantity) }],
+      ),
+    );
+  return (
+    <ShopContext.Provider
+      value={{
+        query,
+        setQuery,
+        game,
+        setGame,
+        kind,
+        setKind,
+        cart,
+        add,
+        changeCount,
+        cartOpen,
+        setCartOpen,
+        toast,
+        dismissToast: () => setToast(""),
+      }}
+    >
+      {children}
+    </ShopContext.Provider>
+  );
+}

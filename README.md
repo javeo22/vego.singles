@@ -11,3 +11,16 @@ Production starter for Vercel + Supabase.
 6. In Supabase Auth URL settings, set `https://vego-singles.vercel.app` and allow `/auth/callback`.
 
 All imported inventory begins unpublished and with language `unknown` and location `UNASSIGNED`.
+
+## Local development
+
+1. Run `npm install` (Node 22 or newer).
+2. Copy `.env.example` to `.env.local`, then enter your Supabase publishable key and authorized admin emails locally. Keep credentials out of Git. If cloud environment variables are already injected, update those settings instead: they take precedence over `.env.local`.
+3. Allow HTTPS access to `mvikjdvhhsqlmfzwcuwa.supabase.co` when using a restricted network.
+4. Run `npm run dev`.
+
+`npm test` runs the catalog, product detail, cart, WhatsApp inquiry, and inventory interaction tests. `npm run build` checks the production app. The existing lint script requires an ESLint configuration before it can run noninteractively.
+
+The homepage reads only published Supabase inventory. If there is no published inventory or the connection fails, it shows clearly labeled display examples from the supplied design reference. Example prices are illustrative; WhatsApp inquiries explicitly request price and availability confirmation. No payment is collected by the website.
+
+The admin workspace retains the existing email allowlist and Supabase authentication. Search, stock/status filters, overview, and CSV export use live inventory records. Product creation and payment/order processing are outside this redesign. See `design-qa.md` for the visual verification limitation.
