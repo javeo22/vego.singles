@@ -9,6 +9,8 @@ import {
 import {
   displayExamples,
   formatPrice,
+  stockQuantity,
+  comparePrice,
   variantLabel,
   gameNames,
   type Listing,
@@ -23,28 +25,32 @@ export default function Catalog({
   initial: Listing[];
   unavailable?: boolean;
 }) {
-  const { query, setQuery, game, setGame, kind, setKind, add } = useShop();
+  const { query, setQuery, game, setGame, kind, setKind, add, setCartOpen } =
+    useShop();
   const [tab, setTab] = useState("featured");
   const [viewAll, setViewAll] = useState(false);
+  const [priceOrder, setPriceOrder] = useState("asc");
   const [selected, setSelected] = useState<Listing | null>(null);
   const detail = useRef<HTMLDialogElement>(null);
   const isDisplay = initial.length === 0;
   const source = isDisplay ? displayExamples : initial;
   const items = useMemo(
     () =>
-      source.filter((item) => {
-        const printing = item.card_printings;
-        return (
-          printing &&
-          (game === "all" || printing.game === game) &&
-          (kind === "all" || (item.kind || "single") === kind) &&
-          (tab !== "sealed" || item.kind === "sealed") &&
-          `${printing.canonical_name} ${printing.set_name} ${printing.collector_number}`
-            .toLowerCase()
-            .includes(query.toLowerCase().trim())
-        );
-      }),
-    [source, game, query, kind, tab],
+      source
+        .filter((item) => {
+          const printing = item.card_printings;
+          return (
+            printing &&
+            (game === "all" || printing.game === game) &&
+            (kind === "all" || (item.kind || "single") === kind) &&
+            (tab !== "sealed" || item.kind === "sealed") &&
+            `${printing.canonical_name} ${printing.set_name} ${printing.collector_number}`
+              .toLowerCase()
+              .includes(query.toLowerCase().trim())
+          );
+        })
+        .sort((a, b) => comparePrice(a, b, priceOrder === "asc")),
+    [source, game, query, kind, tab, priceOrder],
   );
   const shown =
     viewAll || query || game !== "all" || kind !== "all"
@@ -61,7 +67,7 @@ export default function Catalog({
       aria-labelledby="catalog-title"
     >
       <div className="section-heading">
-        <h2 id="catalog-title">Catálogo</h2>
+        <h1 id="catalog-title">Catálogo</h1>
         <div
           className="display-tabs"
           role="tablist"
@@ -100,6 +106,17 @@ export default function Catalog({
             Productos sellados
           </button>
         </div>
+        <label className="catalog-order">
+          Precio
+          <select
+            value={priceOrder}
+            onChange={(event) => setPriceOrder(event.target.value)}
+            aria-label="Ordenar por precio"
+          >
+            <option value="asc">Menor a mayor</option>
+            <option value="desc">Mayor a menor</option>
+          </select>
+        </label>
         <button
           className="view-all"
           onClick={() => setViewAll((value) => !value)}
@@ -163,16 +180,28 @@ export default function Catalog({
                     : variantLabel(item.condition)}
                 </span>
               </div>
+              {stockQuantity(item) === null && (
+                <span className="stock-unconfirmed">
+                  Disponibilidad por confirmar
+                </span>
+              )}
               <strong className="price">
                 {formatPrice(item.approved_price_crc)}
               </strong>
               <button
                 className="button add-button"
-                disabled={item.quantity <= 0}
-                onClick={() => add(item)}
+                disabled={stockQuantity(item) === 0}
+                onClick={() => {
+                  add(item);
+                  if (stockQuantity(item) === null) setCartOpen(true);
+                }}
               >
                 <ShoppingCart size={19} weight="light" />
-                {item.quantity > 0 ? "Agregar" : "Agotado"}
+                {stockQuantity(item) === 0
+                  ? "Agotado"
+                  : stockQuantity(item) === null
+                    ? "Consultar"
+                    : "Agregar"}
               </button>
             </div>
           </article>
@@ -253,14 +282,19 @@ export default function Catalog({
               </strong>
               <button
                 className="button"
-                disabled={selected.quantity <= 0}
+                disabled={stockQuantity(selected) === 0}
                 onClick={() => {
                   add(selected);
+                  if (stockQuantity(selected) === null) setCartOpen(true);
                   setSelected(null);
                 }}
               >
                 <ShoppingCart size={20} />
-                Agregar
+                {stockQuantity(selected) === 0
+                  ? "Agotado"
+                  : stockQuantity(selected) === null
+                    ? "Consultar"
+                    : "Agregar"}
               </button>
               <p className="small-note">
                 {selected.sample

@@ -24,3 +24,5 @@ All imported inventory begins unpublished and with language `unknown` and locati
 The homepage reads only published Supabase inventory. If there is no published inventory or the connection fails, it shows clearly labeled display examples from the supplied design reference. Example prices are illustrative; WhatsApp inquiries explicitly request price and availability confirmation. No payment is collected by the website.
 
 The admin workspace retains the existing email allowlist and Supabase authentication. Search, stock/status filters, overview, and CSV export use live inventory records. Product creation and payment/order processing are outside this redesign. See `design-qa.md` for the visual verification limitation.
+
+The storefront opens directly with cards, sorted by price from low to high. Unknown stock is labeled for confirmation and supports an availability inquiry; only confirmed zero stock displays “Agotado”. Stock lots are read to reconcile missing/zero counts when the database is accessible.

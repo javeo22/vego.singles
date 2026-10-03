@@ -1,7 +1,11 @@
-import { ArrowRight } from "@phosphor-icons/react/dist/ssr";
 import Catalog from "@/components/catalog";
 import { createClient } from "@/lib/supabase/server";
-import type { Listing } from "@/lib/catalog";
+import {
+  stockQuantity,
+  parseStockQuantity,
+  comparePrice,
+  type Listing,
+} from "@/lib/catalog";
 export const dynamic = "force-dynamic";
 export default async function Home() {
   let listings: Listing[] = [];
@@ -13,41 +17,42 @@ export default async function Home() {
       .select("*")
       .abortSignal(AbortSignal.timeout(8000));
     unavailable = Boolean(error);
-    listings = ((data || []) as Listing[]).sort((a, b) =>
-      (a.card_printings?.canonical_name || "").localeCompare(
-        b.card_printings?.canonical_name || "",
-      ),
+    listings = (data || []) as Listing[];
+    const missingStock = listings.filter(
+      (item) => stockQuantity(item) === null || stockQuantity(item) === 0,
     );
+    if (missingStock.length) {
+      const { data: lots, error: stockError } = await supabase
+        .from("stock_lots")
+        .select("listing_id,quantity")
+        .in(
+          "listing_id",
+          missingStock.map((item) => item.id),
+        )
+        .abortSignal(AbortSignal.timeout(8000));
+      if (!stockError && lots) {
+        const totals = new Map<string, number>();
+        for (const lot of lots) {
+          const count = parseStockQuantity(lot.quantity);
+          if (count !== null)
+            totals.set(
+              lot.listing_id,
+              (totals.get(lot.listing_id) || 0) + count,
+            );
+        }
+        listings = listings.map((item) =>
+          totals.has(item.id)
+            ? { ...item, quantity: totals.get(item.id)! }
+            : item,
+        );
+      }
+    }
+    listings.sort((a, b) => comparePrice(a, b));
   } catch {
     unavailable = true;
   }
   return (
     <main id="main-content">
-      <section className="hero" aria-labelledby="hero-title">
-        <div className="hero-copy">
-          <h1 id="hero-title" aria-label="Tu próxima carta está aquí.">
-            Tu próxima
-            <br />
-            <span>carta está</span>
-            <br />
-            aquí.
-          </h1>
-          <p>
-            Pokémon y Magic en inglés, español, japonés y chino. Consulta
-            disponibilidad y completa tu compra por WhatsApp.
-          </p>
-          <a className="button hero-button" href="#catalogo">
-            Ver catálogo <ArrowRight size={24} weight="light" />
-          </a>
-        </div>
-        <div className="hero-art">
-          <img
-            src="/images/reference-display.jpg"
-            alt="Cartas de Charizard, Sol Ring y Stitch junto a cajas de Pokémon, Lorcana y Star Wars"
-            className="hero-reference-image"
-          />
-        </div>
-      </section>
       <Catalog initial={listings} unavailable={unavailable} />
     </main>
   );

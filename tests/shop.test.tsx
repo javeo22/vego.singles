@@ -237,3 +237,92 @@ test("inventory stock/status filters and overview use supplied live records", as
   await user.click(screen.getByRole("button", { name: "Resumen" }));
   assert.ok(screen.getByText("Borradores"));
 });
+
+test("catalog leads with low prices and can reverse price order", async () => {
+  const user = shop();
+  const names = () =>
+    within(screen.getByRole("tabpanel"))
+      .getAllByRole("article")
+      .map((article) =>
+        within(article)
+          .getByRole("button", { name: /^Ver / })
+          .getAttribute("aria-label"),
+      );
+  assert.deepEqual(names(), [
+    "Ver Sol Ring",
+    "Ver Stitch — Carefree Surfer",
+    "Ver Charizard ex",
+    "Ver Spark of Rebellion Booster Box",
+  ]);
+  await user.selectOptions(
+    screen.getByRole("combobox", { name: "Ordenar por precio" }),
+    "desc",
+  );
+  assert.deepEqual(names(), [
+    "Ver Spark of Rebellion Booster Box",
+    "Ver Charizard ex",
+    "Ver Stitch — Carefree Surfer",
+    "Ver Sol Ring",
+  ]);
+});
+
+test("missing stock enables an availability inquiry without claiming available copies", async () => {
+  const user = shop([
+    { ...displayExamples[0], sample: false, quantity: undefined },
+  ]);
+  assert.equal(screen.queryByRole("button", { name: "Agotado" }), null);
+  await user.click(screen.getByRole("button", { name: "Consultar" }));
+  const cart = screen.getByRole("dialog", { name: "Tu carrito." });
+  assert.ok(within(cart).getByText("Disponibilidad por confirmar"));
+  assert.equal(
+    (
+      within(cart).getByRole("button", {
+        name: "Aumentar cantidad de Charizard ex",
+      }) as HTMLButtonElement
+    ).disabled,
+    true,
+  );
+  let opened = "";
+  dom.window.open = ((url: string) => {
+    opened = url;
+    return null;
+  }) as typeof dom.window.open;
+  await user.click(
+    within(cart).getByRole("button", { name: "Consultar disponibilidad" }),
+  );
+  assert.match(
+    new URL(opened).searchParams.get("text") || "",
+    /1x Charizard ex.*disponibilidad por confirmar/,
+  );
+});
+
+test("confirmed zero stock stays disabled while numeric API stock enables adding", async () => {
+  const user = shop([
+    { ...displayExamples[0], sample: false, quantity: 0 },
+    {
+      ...displayExamples[1],
+      sample: false,
+      quantity: "2" as unknown as number,
+    },
+  ]);
+  assert.equal(
+    (screen.getByRole("button", { name: "Agotado" }) as HTMLButtonElement)
+      .disabled,
+    true,
+  );
+  await user.click(screen.getByRole("button", { name: "Agregar" }));
+  await user.click(screen.getByRole("button", { name: "Open cart" }));
+  const cart = screen.getByRole("dialog", { name: "Tu carrito." });
+  await user.click(
+    within(cart).getByRole("button", { name: "Aumentar cantidad de Sol Ring" }),
+  );
+  assert.equal(
+    (
+      within(cart).getByRole("button", {
+        name: "Aumentar cantidad de Sol Ring",
+      }) as HTMLButtonElement
+    ).disabled,
+    true,
+  );
+  assert.equal(within(cart).getAllByText("₡5,000").length, 3);
+});

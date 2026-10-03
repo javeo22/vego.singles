@@ -7,7 +7,7 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import type { Listing } from "@/lib/catalog";
+import { stockQuantity, cartLimit, type Listing } from "@/lib/catalog";
 
 export type CartLine = { item: Listing; count: number };
 type ShopState = {
@@ -46,13 +46,15 @@ export default function ShopProvider({ children }: { children: ReactNode }) {
     [],
   );
   const add = (item: Listing) => {
-    if (item.quantity <= 0) return;
+    if (stockQuantity(item) === 0) return;
     const current = cart.find((line) => line.item.id === item.id);
-    if (current && current.count >= item.quantity) {
+    if (current && current.count >= cartLimit(item)) {
       setToast(
         item.sample
           ? "Esta carta de referencia ya está en tu carrito."
-          : "Ya agregaste todas las copias disponibles.",
+          : stockQuantity(item) === null
+            ? "Confirma disponibilidad por WhatsApp."
+            : "Ya agregaste todas las copias disponibles.",
       );
     } else {
       setCart((lines) => {
@@ -60,7 +62,7 @@ export default function ShopProvider({ children }: { children: ReactNode }) {
         return found
           ? lines.map((line) =>
               line.item.id === item.id
-                ? { ...line, count: Math.min(line.count + 1, item.quantity) }
+                ? { ...line, count: Math.min(line.count + 1, cartLimit(item)) }
                 : line,
             )
           : [...lines, { item, count: 1 }];
@@ -77,7 +79,7 @@ export default function ShopProvider({ children }: { children: ReactNode }) {
           ? [line]
           : count <= 0
             ? []
-            : [{ ...line, count: Math.min(count, line.item.quantity) }],
+            : [{ ...line, count: Math.min(count, cartLimit(line.item)) }],
       ),
     );
   return (

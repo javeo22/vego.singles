@@ -51,3 +51,11 @@ No visual comparisons were performed. HTTP and DOM checks are functional evidenc
 ## Spanish wording update
 
 The user requested the original Spanish wording. The original homepage headline/description were restored, controls and variant labels were translated, and the document language is `es`. Hero paragraph wrapping was adjusted for the longer original copy. Production build, TypeScript, and all 6 interaction tests passed; browser visual QA remains blocked.
+
+## Card showcase and stock update
+
+The user requested no opening slogan and browsing by price. The hero copy/image block has been removed. The catalog now starts the page with larger card art on desktop, defaults to ascending price, and offers descending price as an alternative.
+
+Missing, null, or malformed quantities are treated as unconfirmed stock instead of sold out. Confirmed zero stock remains disabled. Unconfirmed stock permits a one-card WhatsApp availability inquiry, with increments disabled until stock is confirmed. Public stock lots are queried for missing/zero listing counts when accessible; no database records are changed.
+
+All 9 DOM interaction tests passed, including price ordering, unknown-stock inquiries, and zero/numeric stock. TypeScript and the production build passed. Live Supabase stock requests are still blocked by the cloud network proxy (HTTP CONNECT 403). A draft allowing the specific project hostname was saved; it requires applying in environment settings before runtime access can be validated. Browser visual QA remains blocked.

@@ -3,7 +3,7 @@ export type Listing = {
   approved_price_crc: number;
   condition: string;
   finish: string;
-  quantity: number;
+  quantity?: number | null;
   kind?: "single" | "sealed";
   reference?: "charizard" | "sol-ring" | "stitch" | "star-wars";
   sample?: boolean;
@@ -126,4 +126,36 @@ const variantLabels: Record<string, string> = {
 export function variantLabel(value: string | null | undefined) {
   if (!value) return "";
   return variantLabels[value.trim().toLowerCase()] || value;
+}
+
+export function parseStockQuantity(value: unknown): number | null {
+  if (value === null || value === undefined || value === "") return null;
+  if (typeof value !== "number" && typeof value !== "string") return null;
+  if (typeof value === "string" && !value.trim()) return null;
+  const count = Number(value);
+  return Number.isSafeInteger(count) && count >= 0 ? count : null;
+}
+
+export function stockQuantity(item: Listing): number | null {
+  return parseStockQuantity(item.quantity);
+}
+
+// Unconfirmed stock can be included in a one-card availability inquiry.
+export function cartLimit(item: Listing) {
+  return stockQuantity(item) ?? 1;
+}
+
+export function comparePrice(a: Listing, b: Listing, ascending = true) {
+  const priceA = Number(a.approved_price_crc);
+  const priceB = Number(b.approved_price_crc);
+  if (!Number.isFinite(priceA)) return Number.isFinite(priceB) ? 1 : 0;
+  if (!Number.isFinite(priceB)) return -1;
+  const difference = ascending ? priceA - priceB : priceB - priceA;
+  return (
+    difference ||
+    (a.card_printings?.canonical_name || "").localeCompare(
+      b.card_printings?.canonical_name || "",
+      "es",
+    )
+  );
 }

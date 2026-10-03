@@ -9,7 +9,12 @@ import {
   Trash,
   X,
 } from "@phosphor-icons/react";
-import { formatPrice, variantLabel } from "@/lib/catalog";
+import {
+  formatPrice,
+  variantLabel,
+  stockQuantity,
+  cartLimit,
+} from "@/lib/catalog";
 import ProductArt from "./product-art";
 import { useShop } from "./shop-provider";
 
@@ -33,10 +38,11 @@ export default function CartPanel() {
     0,
   );
   const samples = cart.some((line) => line.item.sample);
+  const unconfirmed = cart.some((line) => stockQuantity(line.item) === null);
   const checkout = () => {
     const lines = cart.map(
       ({ item, count }) =>
-        `${count}x ${item.card_printings?.canonical_name} ${item.card_printings?.collector_number || ""} — ${formatPrice(item.approved_price_crc * count)}${item.sample ? " (referencia; confirmar precio y disponibilidad)" : ""}`,
+        `${count}x ${item.card_printings?.canonical_name} ${item.card_printings?.collector_number || ""} — ${formatPrice(item.approved_price_crc * count)}${item.sample ? " (referencia; confirmar precio y disponibilidad)" : stockQuantity(item) === null ? " (disponibilidad por confirmar)" : ""}`,
     );
     const text = `Hola, quiero consultar disponibilidad:\n\n${lines.join("\n")}\n\n${samples ? "Precios de referencia" : "Subtotal"}: ${formatPrice(subtotal)}\nEntrega Duelist Kingdom: ₡500\n\nEntiendo que agregar al carrito no reserva las cartas. Por favor, confirmar disponibilidad y precio final.`;
     window.open(
@@ -98,6 +104,9 @@ export default function CartPanel() {
                         {variantLabel(item.card_printings?.language)}{" "}
                         {item.finish && `· ${variantLabel(item.finish)}`}
                       </p>
+                      {stockQuantity(item) === null && (
+                        <p>Disponibilidad por confirmar</p>
+                      )}
                       <button
                         className="remove-button"
                         onClick={() => changeCount(item.id, 0)}
@@ -119,7 +128,7 @@ export default function CartPanel() {
                           <span aria-label="Cantidad">{count}</span>
                           <button
                             aria-label={`Aumentar cantidad de ${item.card_printings?.canonical_name}`}
-                            disabled={count >= item.quantity}
+                            disabled={count >= cartLimit(item)}
                             onClick={() => changeCount(item.id, count + 1)}
                           >
                             <Plus size={15} />
@@ -145,7 +154,7 @@ export default function CartPanel() {
                   <strong>{formatPrice(subtotal)}</strong>
                 </div>
                 <button className="button checkout-button" onClick={checkout}>
-                  {samples
+                  {samples || unconfirmed
                     ? "Consultar disponibilidad"
                     : "Comprar por WhatsApp"}
                   <ArrowRight size={22} />
