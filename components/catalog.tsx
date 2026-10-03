@@ -29,7 +29,7 @@ export default function Catalog({
     useShop();
   const [tab, setTab] = useState("featured");
   const [viewAll, setViewAll] = useState(false);
-  const [priceOrder, setPriceOrder] = useState("asc");
+  const [priceOrder, setPriceOrder] = useState("desc");
   const [selected, setSelected] = useState<Listing | null>(null);
   const detail = useRef<HTMLDialogElement>(null);
   const isDisplay = initial.length === 0;
@@ -67,7 +67,7 @@ export default function Catalog({
       aria-labelledby="catalog-title"
     >
       <div className="section-heading">
-        <h1 id="catalog-title">Catálogo</h1>
+        <h2 id="catalog-title">Catálogo</h2>
         <div
           className="display-tabs"
           role="tablist"

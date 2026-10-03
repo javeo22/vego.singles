@@ -89,6 +89,20 @@ export default function SiteHeader() {
         </div>
         <nav className="category-nav wide" aria-label="Categorías">
           <div className="game-links">
+            <button
+              aria-pressed={
+                pathname === "/" && !query && game === "all" && kind === "all"
+              }
+              onClick={() => {
+                setQuery("");
+                setGame("all");
+                setKind("all");
+                if (pathname !== "/") router.push("/");
+                else window.scrollTo({ top: 0, behavior: "smooth" });
+              }}
+            >
+              Inicio
+            </button>
             {Object.entries(gameNames).map(([key, name]) => (
               <button
                 key={key}

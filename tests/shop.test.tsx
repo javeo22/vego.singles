@@ -29,6 +29,7 @@ const { default: userEvent } = await import("@testing-library/user-event");
 const { default: ShopProvider, useShop } =
   await import("../components/shop-provider");
 const { default: Catalog } = await import("../components/catalog");
+const { default: HomeShowcase } = await import("../components/home-showcase");
 const { default: CartPanel } = await import("../components/cart-panel");
 const { default: Inventory } = await import("../components/inventory");
 const { displayExamples } = await import("../lib/catalog");
@@ -238,7 +239,7 @@ test("inventory stock/status filters and overview use supplied live records", as
   assert.ok(screen.getByText("Borradores"));
 });
 
-test("catalog leads with low prices and can reverse price order", async () => {
+test("catalog leads with high prices and can reverse price order", async () => {
   const user = shop();
   const names = () =>
     within(screen.getByRole("tabpanel"))
@@ -249,20 +250,20 @@ test("catalog leads with low prices and can reverse price order", async () => {
           .getAttribute("aria-label"),
       );
   assert.deepEqual(names(), [
-    "Ver Sol Ring",
-    "Ver Stitch — Carefree Surfer",
-    "Ver Charizard ex",
     "Ver Spark of Rebellion Booster Box",
+    "Ver Charizard ex",
+    "Ver Stitch — Carefree Surfer",
+    "Ver Sol Ring",
   ]);
   await user.selectOptions(
     screen.getByRole("combobox", { name: "Ordenar por precio" }),
-    "desc",
+    "asc",
   );
   assert.deepEqual(names(), [
-    "Ver Spark of Rebellion Booster Box",
-    "Ver Charizard ex",
-    "Ver Stitch — Carefree Surfer",
     "Ver Sol Ring",
+    "Ver Stitch — Carefree Surfer",
+    "Ver Charizard ex",
+    "Ver Spark of Rebellion Booster Box",
   ]);
 });
 
@@ -325,4 +326,68 @@ test("confirmed zero stock stays disabled while numeric API stock enables adding
     true,
   );
   assert.equal(within(cart).getAllByText("₡5,000").length, 3);
+});
+
+test("home showcase features the most expensive cards and opens a filtered catalog", async () => {
+  const user = userEvent.setup({ document: dom.window.document });
+  const cards = [
+    ...displayExamples,
+    {
+      ...displayExamples[0],
+      id: "sold-out-premium",
+      sample: false,
+      quantity: 0,
+      approved_price_crc: 999999,
+      card_printings: {
+        ...displayExamples[0].card_printings!,
+        canonical_name: "Carta agotada",
+      },
+    },
+  ];
+  render(
+    <ShopProvider>
+      <HomeShowcase initial={cards} />
+      <Catalog initial={cards} />
+    </ShopProvider>,
+  );
+  const showcase = screen.getByRole("region", { name: "En vitrina" });
+  const names = within(showcase)
+    .getAllByRole("article")
+    .map((article) =>
+      within(article)
+        .getByRole("button", { name: /^Ver / })
+        .getAttribute("aria-label"),
+    );
+  assert.deepEqual(names, [
+    "Ver Charizard ex en el catálogo",
+    "Ver Stitch — Carefree Surfer en el catálogo",
+    "Ver Sol Ring en el catálogo",
+  ]);
+  assert.equal(within(showcase).queryByText("Carta agotada"), null);
+  assert.equal(
+    within(showcase).queryByText("Spark of Rebellion Booster Box"),
+    null,
+  );
+  await user.click(
+    within(showcase).getByRole("button", {
+      name: "Ver Charizard ex en el catálogo",
+    }),
+  );
+  assert.equal(screen.queryByRole("region", { name: "En vitrina" }), null);
+  const products = screen.getByRole("tabpanel");
+  assert.equal(within(products).getAllByRole("article").length, 1);
+  assert.ok(within(products).getByRole("button", { name: "Charizard ex" }));
+});
+
+test("home display remains distinct when every listed card is out of stock", () => {
+  render(
+    <ShopProvider>
+      <HomeShowcase
+        initial={[{ ...displayExamples[0], sample: false, quantity: 0 }]}
+      />
+    </ShopProvider>,
+  );
+  const showcase = screen.getByRole("region", { name: "En vitrina" });
+  assert.ok(within(showcase).getByRole("button", { name: "Charizard ex" }));
+  assert.ok(within(showcase).getByText("Agotado"));
 });

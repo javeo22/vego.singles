@@ -59,3 +59,9 @@ The user requested no opening slogan and browsing by price. The hero copy/image 
 Missing, null, or malformed quantities are treated as unconfirmed stock instead of sold out. Confirmed zero stock remains disabled. Unconfirmed stock permits a one-card WhatsApp availability inquiry, with increments disabled until stock is confirmed. Public stock lots are queried for missing/zero listing counts when accessible; no database records are changed.
 
 All 9 DOM interaction tests passed, including price ordering, unknown-stock inquiries, and zero/numeric stock. TypeScript and the production build passed. Live Supabase stock requests are still blocked by the cloud network proxy (HTTP CONNECT 403). A draft allowing the specific project hostname was saved; it requires applying in environment settings before runtime access can be validated. Browser visual QA remains blocked.
+
+## Home display and descending prices
+
+The homepage now opens with a distinct “En vitrina” display featuring up to three highest-priced singles, with larger card images, names, and prices. Available or unconfirmed-stock cards take priority; when all stock is confirmed zero, the home display remains visible and labels those cards “Agotado”. A card opens its filtered catalog, and “Inicio” clears filters to restore the home display. The catalog defaults to highest-to-lowest price. No marketing slogan was added, and Spanish wording is retained.
+
+All 11 DOM interaction tests passed, including showcase order, card selection, and the all-sold-out home state. The production build and TypeScript check passed. A production HTTP check returned 200 and confirmed the Spanish home display appears before the catalog with descending price selected. Browser visual QA remains blocked.
