@@ -23,7 +23,7 @@ dom.window.HTMLDialogElement.prototype.close = function () {
   this.open = false;
   this.dispatchEvent(new dom.window.Event("close"));
 };
-const { render, screen, cleanup, within } =
+const { render, screen, cleanup, within, waitFor } =
   await import("@testing-library/react");
 const { default: userEvent } = await import("@testing-library/user-event");
 const { default: ShopProvider, useShop } =
@@ -58,8 +58,10 @@ function shop(initial = displayExamples) {
   );
   return user;
 }
+const originalFetch = globalThis.fetch;
 afterEach(() => {
   cleanup();
+  globalThis.fetch = originalFetch;
   document.body.style.overflow = "";
 });
 
@@ -390,4 +392,83 @@ test("home display remains distinct when every listed card is out of stock", () 
   const showcase = screen.getByRole("region", { name: "En vitrina" });
   assert.ok(within(showcase).getByRole("button", { name: "Charizard ex" }));
   assert.ok(within(showcase).getByText("Agotado"));
+});
+
+test("saved WhatsApp inquiry uses server totals and retains its key after a failed response", async () => {
+  const sent: any[] = [],
+    navigated: string[] = [];
+  let enabled = false,
+    closed = 0;
+  globalThis.fetch = (async (url, options) => {
+    if (String(url) === "/api/store-settings") {
+      enabled = true;
+      return new Response(
+        JSON.stringify({ requestsEnabled: true, deliveryFeeCrc: 500 }),
+      );
+    }
+    const payload = JSON.parse(String(options?.body));
+    sent.push(payload);
+    if (sent.length === 1)
+      return new Response(JSON.stringify({ error: "Intenta de nuevo" }), {
+        status: 502,
+      });
+    return new Response(
+      JSON.stringify({
+        number: "VS-123",
+        subtotal: 15000,
+        delivery: 500,
+        total: 15500,
+        items: [
+          {
+            quantity: 1,
+            price: 15000,
+            variant: {
+              name: "Charizard ex",
+              set: "Scarlet & Violet 151",
+              number: "199",
+              language: "en",
+              condition: "Near Mint",
+              finish: "Holofoil",
+            },
+          },
+        ],
+      }),
+    );
+  }) as typeof fetch;
+  dom.window.open = (() => ({
+    opener: null,
+    location: { replace: (url: string) => navigated.push(url) },
+    close: () => closed++,
+  })) as unknown as typeof dom.window.open;
+  const user = shop([
+    {
+      ...displayExamples[0],
+      id: "00000000-0000-4000-8000-000000000021",
+      sample: false,
+      quantity: 3,
+    },
+  ]);
+  await waitFor(() => assert.equal(enabled, true));
+  await user.click(screen.getByRole("button", { name: "Agregar" }));
+  await user.click(screen.getByRole("button", { name: "Open cart" }));
+  const dialog = within(screen.getByRole("dialog", { name: "Tu carrito." }));
+  await user.click(
+    dialog.getByRole("button", { name: "Comprar por WhatsApp" }),
+  );
+  assert.equal(
+    (await dialog.findByRole("alert")).textContent,
+    "Intenta de nuevo",
+  );
+  assert.ok(dialog.getByRole("button", { name: "Continuar por WhatsApp" }));
+  assert.equal(closed, 1);
+  await user.click(
+    dialog.getByRole("button", { name: "Comprar por WhatsApp" }),
+  );
+  await waitFor(() => assert.equal(navigated.length, 1));
+  assert.equal(sent[0].key, sent[1].key);
+  const message = new URL(navigated[0]).searchParams.get("text")!;
+  assert.match(message, /VS-123/);
+  assert.match(message, /15,500/);
+  assert.match(message, /199/);
+  assert.match(message, /no reserva/);
 });

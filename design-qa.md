@@ -65,3 +65,11 @@ All 9 DOM interaction tests passed, including price ordering, unknown-stock inqu
 The homepage now opens with a distinct “En vitrina” display featuring up to three highest-priced singles, with larger card images, names, and prices. Available or unconfirmed-stock cards take priority; when all stock is confirmed zero, the home display remains visible and labels those cards “Agotado”. A card opens its filtered catalog, and “Inicio” clears filters to restore the home display. The catalog defaults to highest-to-lowest price. No marketing slogan was added, and Spanish wording is retained.
 
 All 11 DOM interaction tests passed, including showcase order, card selection, and the all-sold-out home state. The production build and TypeScript check passed. A production HTTP check returned 200 and confirmed the Spanish home display appears before the catalog with descending price selected. Browser visual QA remains blocked.
+
+## Operations implementation, 4 October 2026
+
+The new admin includes imports, identity review, pricing proposals, lot costs, stock movements, customer inquiries/reservations, roles, audit and persistent jobs. All new interface wording is Spanish. The homepage retains its expensive-card display and descending catalog order.
+
+Functional evidence now includes 43 passing tests, TypeScript, configured ESLint, a reproducible npm ci installation and production builds. PGlite executes the migrations locally and the provider adapters use fixtures. Read-only production catalog access succeeded with 289 listings; the legacy available field is boolean, not a count. No production data was changed. The cloud Node SDK needs NODE_USE_ENV_PROXY=1.
+
+The operations migration and server key remain pending in production. Authenticated browser workflows, two-connection PostgreSQL reservation testing, real provider access and visual comparison remain unverified. See docs/VALIDATION.md and docs/GUIA_ADMIN.md; earlier entries above describe prior iterations rather than the current validation state.
