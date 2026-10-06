@@ -73,3 +73,9 @@ The new admin includes imports, identity review, pricing proposals, lot costs, s
 Functional evidence now includes 43 passing tests, TypeScript, configured ESLint, a reproducible npm ci installation and production builds. PGlite executes the migrations locally and the provider adapters use fixtures. Read-only production catalog access succeeded with 289 listings; the legacy available field is boolean, not a count. No production data was changed. The cloud Node SDK needs NODE_USE_ENV_PROXY=1.
 
 The operations migration and server key remain pending in production. Authenticated browser workflows, two-connection PostgreSQL reservation testing, real provider access and visual comparison remain unverified. See docs/VALIDATION.md and docs/GUIA_ADMIN.md; earlier entries above describe prior iterations rather than the current validation state.
+
+## Password access, 6 October 2026
+
+The Spanish login form now uses the existing admin email as username and a password. The magic-link request UI was removed. The new form supports password managers, hiding/showing passwords, actionable errors and one pending submission. Existing server/database authorization remains in effect.
+
+All 52 tests, lint, TypeScript and the production build passed. HTTP checks confirm password inputs, no send-link button, anonymous admin redirect and the unchanged home display. Initial password setup is provided as a private terminal command; no real account was modified. Visual/browser acceptance and a real credential login remain unverified.

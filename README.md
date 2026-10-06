@@ -6,6 +6,10 @@ La administración incluye importación CSV/TSV y listas pegadas, revisión de i
 
 La [guía de administración](docs/GUIA_ADMIN.md) explica instalación, procesos diarios y un **recorrido práctico de una hora**. Incluye una [plantilla CSV](docs/import-example.csv).
 
+## Acceso administrador
+
+En `/login`, el usuario es el correo administrador existente y el ingreso usa contraseña, sin enviar enlaces mágicos. Si la cuenta no tiene contraseña, un operador puede configurarla sin email con `npm run admin:set-password -- TU_CORREO_ADMIN`; se solicita de forma oculta y requiere la clave de servidor en un entorno privado. Consulta [ACCESO_ADMIN.md](docs/ACCESO_ADMIN.md) para habilitar la cuenta sin cambiar su identidad o permisos.
+
 ## Instalación y actualización
 
 En un proyecto Supabase existente:

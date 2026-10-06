@@ -934,6 +934,14 @@ dialog::backdrop {
   font-size: 14px;
   min-width: 0;
 }
+.login-password-label {
+  margin-top: 22px;
+}
+.login-help {
+  margin-top: 18px;
+  font-size: 13px;
+  line-height: 1.5;
+}
 .login-submit {
   width: 100%;
   justify-content: space-between;

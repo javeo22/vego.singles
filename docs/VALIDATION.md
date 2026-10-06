@@ -30,3 +30,11 @@ No se dispone de clave de servidor, conexión SQL ni sesión de administrador en
 - Probar dos reservas simultáneas de la última copia desde conexiones distintas a PostgreSQL real; PGlite serializa sus conexiones.
 - Confirmar credenciales, cobertura y cuotas de los proveedores. Las consultas externas estaban bloqueadas por la política de red durante el desarrollo.
 - Capturar escritorio y móvil para comparación visual y revisar consola, foco, diálogos y ventanas de WhatsApp. Las pruebas DOM/HTTP no sustituyen esa revisión.
+
+## Acceso con contraseña: 6 de octubre de 2026
+
+El login usa correo/contraseña y ya no solicita enlaces mágicos. Los 52 tests pasan, junto con lint, TypeScript y build. Las nuevas pruebas comprueban credenciales incorrectas/reintento, sesión obligatoria, fallos de red, bloqueo de envíos simultáneos y conservación del ID/permisos al configurar una contraseña. También verifican que un rol revocado no pueda recuperarse mediante la lista anterior de correos.
+
+El servidor compilado respondió 200 en `/login` con campos de usuario y contraseña y sin botón de envío de enlace. `/admin` sin sesión siguió redirigiendo a login; la tienda conservó su vitrina. La consulta pública de ajustes de Supabase confirmó que Email está habilitado.
+
+Se comprobó la entrada oculta del comando de contraseña con datos ficticios y cancelación por confirmación diferente, sin enviar solicitudes de modificación a Supabase. No se configuró ninguna contraseña real: falta la clave de servidor. El login completo con una cuenta real y su contraseña elegida queda pendiente; consulta [ACCESO_ADMIN.md](ACCESO_ADMIN.md).

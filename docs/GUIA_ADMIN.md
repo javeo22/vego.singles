@@ -9,7 +9,7 @@ Haz esta parte antes del recorrido. Necesitas acceso al proyecto de Supabase y a
 1. Haz una copia de seguridad de la base de datos y prueba la actualización en un proyecto de ensayo.
 2. Ejecuta `supabase/operations_preflight.sql` en el SQL Editor. Compara los listados publicados con el stock real. La producción consultada tenía 289 listados y el campo `available` era booleano; ese campo no acredita cuántas copias hay. Si hay listados sin lotes, prepara su recepción o conteo físico.
 3. En un proyecto existente, ejecuta **solo** `supabase/migrations/202610040001_operations.sql`. No vuelvas a ejecutar el seed de inventario. La migración es transaccional: un error cancela la actualización completa. No reemplaza la vista `public_listings`, los precios aprobados ni los campos de vitrina existentes. Crea `storefront_inventory` para cantidades reales, descontando reservas y cuarentena. Los productos sin stock real dejan de aparecer en esa vista.
-4. Los propietarios originales que ya ingresaron quedan registrados en `admin_memberships`. Para otro propietario, primero ingresa con su correo y luego ejecuta en el SQL Editor, reemplazando el correo:
+4. Los propietarios originales que ya tenían cuenta quedan registrados en `admin_memberships`. Para otro propietario, primero crea su cuenta de correo/contraseña en Supabase Auth y luego ejecuta en el SQL Editor, reemplazando el correo:
 
    ```sql
    insert into public.admin_memberships(user_id, role)
@@ -21,7 +21,7 @@ Haz esta parte antes del recorrido. Necesitas acceso al proyecto de Supabase y a
    Comprueba que la consulta encontró al usuario. El rol nuevo se consulta en la base de datos; `ADMIN_EMAILS` sirve solamente al panel anterior mientras la migración no esté instalada.
 
 5. Configura en Vercel `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` y **`SUPABASE_SERVICE_ROLE_KEY`**. Esta última se usa únicamente en el servidor para registrar consultas. Redeploy después de cambiar variables. Sin la migración, el panel anterior sigue disponible; sin la clave de servidor, la tienda conserva la consulta directa por WhatsApp.
-6. Ingresa en `/admin`. En **Ajustes**, registra ubicaciones, tipo de cambio y fecha/fuente, costos de manejo, margen, comisiones y entrega. No hay un tipo de cambio inventado de fábrica. Los precios USD requieren un cambio fechado de máximo siete días.
+6. Ingresa en `/login` con tu correo y contraseña. Si tu cuenta solo usaba enlaces, configura su primera contraseña siguiendo [ACCESO_ADMIN.md](ACCESO_ADMIN.md). Luego abre `/admin`. En **Ajustes**, registra ubicaciones, tipo de cambio y fecha/fuente, costos de manejo, margen, comisiones y entrega. No hay un tipo de cambio inventado de fábrica. Los precios USD requieren un cambio fechado de máximo siete días.
 7. Comprueba una carta: verifica identidad, ubícala físicamente, genera/aprueba precio y publica. Crea una consulta desde la tienda y confirma que aparece en **Solicitudes** antes de habilitar toda la operación.
 
 La migración retira lectura pública de tablas privadas y mutaciones directas del personal. No concede stock ficticio ni publica borradores. Los listados que ya estaban publicados conservan esa decisión; sus identidades pendientes aparecen en Revisiones. Cambiar su idioma, condición o acabado puede requerir una nueva revisión de precio/publicación.
@@ -130,7 +130,7 @@ Para devoluciones, recibe las copias en la variante de condición correcta con r
 - **Revisor:** identidad, evidencias, propuestas y publicación; no ajusta stock ni confirma ventas.
 - **Stock:** recepción, movimientos, cuarentena y solicitudes; no aprueba precios ni publica.
 
-La persona debe iniciar sesión primero. Asigna/revoca roles en Ajustes. El sistema impide retirar tu propio acceso de propietario. La autorización también se verifica en los comandos de base de datos, no solo en botones.
+La cuenta debe existir en Supabase Auth. Asigna/revoca roles en Ajustes; el usuario inicia sesión con ese correo y su contraseña. El sistema impide retirar tu propio acceso de propietario. La autorización también se verifica en los comandos de base de datos, no solo en botones.
 
 Rutina diaria: atender solicitudes, revisar identidades de mayor valor, aprobar precios pendientes, revisar trabajos fallidos, ubicar copias sin ubicación y reconciliar conteos. Search/paginación y exportación usan todos los resultados del servidor; los movimientos detallados muestran los 50 más recientes por consulta.
 
