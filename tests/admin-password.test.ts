@@ -116,7 +116,7 @@ test("invalid account names and weak initial passwords are rejected before query
   );
   await assert.rejects(
     setExistingAdminPassword(m.db, email, "short"),
-    /12 caracteres/,
+    /8 caracteres/,
   );
   assert.deepEqual(m.pages, []);
   assert.deepEqual(m.updates, []);

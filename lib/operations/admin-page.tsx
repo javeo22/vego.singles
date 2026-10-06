@@ -6,6 +6,7 @@ import { createClient } from "@/lib/supabase/server";
 export async function adminPage(section = "") {
   try {
     const { role } = await adminClient();
+    if (section === "usuarios" && role !== "owner") redirect("/admin");
     return <OperationsWorkspace section={section} role={role} />;
   } catch (e) {
     if (e instanceof OperationError && e.status === 401) redirect("/login");
@@ -13,7 +14,6 @@ export async function adminPage(section = "") {
     if (!(e instanceof OperationError) || e.status !== 503) throw e;
   }
   // Preserve the existing dashboard until the versioned database migration is installed.
-  if (section) return <OperationsWorkspace section={section} role={null} />;
   const db = await createClient();
   const {
     data: { user },
@@ -23,6 +23,9 @@ export async function adminPage(section = "") {
     .split(",")
     .map((e) => e.trim().toLowerCase());
   if (!user.email || !allow.includes(user.email.toLowerCase())) redirect("/");
+  if (["ajustes", "usuarios"].includes(section))
+    return <OperationsWorkspace section={section} role="owner" accountOnly />;
+  if (section) return <OperationsWorkspace section={section} role={null} />;
   const [listings, drafts, proposals, inventory] = await Promise.all([
     db.from("listings").select("*", { count: "exact", head: true }),
     db
@@ -41,6 +44,10 @@ export async function adminPage(section = "") {
         La nueva administración se activa al instalar la migración de la guía.
         El panel actual sigue disponible.
       </p>
+      <nav className="wide ops-title-row" aria-label="Cuenta administradora">
+        <a href="/admin/ajustes">Ajustes de mi cuenta</a>
+        <a href="/admin/usuarios">Usuarios</a>
+      </nav>
       <Inventory
         rows={(inventory.data || []) as InventoryRow[]}
         counts={{

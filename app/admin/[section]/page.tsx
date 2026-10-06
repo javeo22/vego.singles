@@ -15,6 +15,7 @@ export default async function AdminSection({
       "precios",
       "solicitudes",
       "ajustes",
+      "usuarios",
     ].includes(section)
   )
     notFound();

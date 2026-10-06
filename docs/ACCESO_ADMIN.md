@@ -23,7 +23,7 @@ Primero configura una contraseña para esa misma cuenta. Necesitas un operador c
    NODE_USE_ENV_PROXY=1 npm run admin:set-password -- TU_CORREO_ADMIN
    ```
 
-5. Escribe tu contraseña dos veces. La entrada permanece oculta; no se incluye en el comando, el historial o mensajes de salida. El comando exige al menos 12 caracteres y máximo 72 bytes, y Supabase aplica también la política de contraseña del proyecto.
+5. Escribe tu contraseña dos veces. La entrada permanece oculta; no se incluye en el comando, el historial o mensajes de salida. El comando exige al menos 8 caracteres y máximo 72 bytes, y Supabase aplica también la política de contraseña del proyecto.
 6. Entra en `/login` con ese correo y la contraseña elegida. No hace falta redesplegar por cambiar la contraseña del usuario.
 
 El comando solo actualiza una cuenta existente con rol `owner`, `reviewer` o `stock`. Si la migración no está instalada, exige un correo incluido en `ADMIN_EMAILS`. Si el sistema nuevo está instalado y el rol fue revocado, la lista anterior no vuelve a habilitarlo. El comando no crea cuentas ni asigna permisos.
@@ -34,6 +34,24 @@ La clave de servidor solo se necesita para esta configuración privada. El inici
 
 El propietario del proyecto puede crearla en **Authentication → Users → Add user → Create user**, con correo y contraseña y la confirmación correspondiente. Después debe asignar su rol siguiendo [GUIA_ADMIN.md](GUIA_ADMIN.md), o autorizar el correo en el panel anterior si la migración sigue pendiente. No hay registro público desde la pantalla de login.
 
+## Cambiar tu contraseña desde Ajustes
+
+En `/admin/ajustes`, abre **Mi cuenta**. Introduce contraseña actual, nueva contraseña y confirmación; pulsa **Cambiar contraseña**. Esta operación verifica primero la contraseña actual y la identidad de la sesión. No necesita la clave de servidor y está disponible también desde el panel anterior, antes de instalar la migración de operaciones.
+
+## Administrar usuarios
+
+Los propietarios tienen una pestaña **Usuarios** en `/admin/usuarios`. Permite:
+
+- Ver los correos y roles del equipo.
+- Crear una cuenta con correo, contraseña inicial y rol, sin enviar un enlace de invitación.
+- Asignar o cambiar el rol de una cuenta existente.
+- Restablecer la contraseña de otra cuenta administradora activa.
+- Revocar acceso sin borrar su historial.
+
+El propietario no puede quitar ni degradar su propio acceso. Revisores y personal de stock no pueden gestionar usuarios. La creación y recuperación requieren `SUPABASE_SERVICE_ROLE_KEY` en el servidor; leer/asignar/revocar roles usa los comandos autorizados de la base. La gestión de usuarios requiere la migración de operaciones de [GUIA_ADMIN.md](GUIA_ADMIN.md), sin una migración adicional para esta entrega.
+
+Las contraseñas se envían únicamente a Supabase Auth; no se incluyen en recibos de operaciones, auditoría de roles o archivos del proyecto. Si se crea una cuenta pero falla la asignación del rol, queda sin acceso; la pantalla lo comunica y permite asignarlo después con **Asignar acceso a una cuenta existente**. No se reemplaza la contraseña al intentar crear un correo que ya existe.
+
 ## Si olvidaste la contraseña
 
-Solicita al operador que repita `admin:set-password` para tu cuenta. Esta recuperación no depende de emails ni enlaces. Una contraseña incorrecta muestra un error y permite reintentar; los límites de intentos siguen gestionados por Supabase.
+Solicita a otro propietario que restablezca tu contraseña desde Usuarios, o a un operador que repita `admin:set-password` para tu cuenta. Esta recuperación no depende de emails ni enlaces. Una contraseña incorrecta muestra un error y permite reintentar; los límites de intentos siguen gestionados por Supabase.

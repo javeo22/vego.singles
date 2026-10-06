@@ -38,3 +38,9 @@ El login usa correo/contraseña y ya no solicita enlaces mágicos. Los 52 tests 
 El servidor compilado respondió 200 en `/login` con campos de usuario y contraseña y sin botón de envío de enlace. `/admin` sin sesión siguió redirigiendo a login; la tienda conservó su vitrina. La consulta pública de ajustes de Supabase confirmó que Email está habilitado.
 
 Se comprobó la entrada oculta del comando de contraseña con datos ficticios y cancelación por confirmación diferente, sin enviar solicitudes de modificación a Supabase. No se configuró ninguna contraseña real: falta la clave de servidor. El login completo con una cuenta real y su contraseña elegida queda pendiente; consulta [ACCESO_ADMIN.md](ACCESO_ADMIN.md).
+
+## Ajustes de cuenta y Usuarios: 6 de octubre de 2026
+
+Los 62 tests pasan, con lint, TypeScript y build. Ajustes permite cambiar la contraseña de la propia cuenta, verificando primero contraseña actual e identidad de sesión, incluso con el panel anterior. Usuarios permite a propietarios crear cuentas con contraseña, cambiar roles, restablecer contraseñas de otros administradores activos y revocar acceso. Las pruebas verifican permisos, protección contra revocar/degradar el propio rol, errores de creación parcial, confirmación de contraseña y ausencia de contraseñas en los recibos de roles.
+
+HTTP del servidor compilado: Ajustes/Usuarios anónimos redirigen a login; las dos APIs de cuenta rechazan sesiones ausentes con 401 y orígenes externos con 403. El login responde 200. La comprobación del login real con las credenciales solicitadas devolvió `invalid_credentials`; no se ha establecido esa contraseña. La creación/restablecimiento de cuentas y la contraseña inicial real siguen pendientes por falta de SUPABASE_SERVICE_ROLE_KEY; no se escribió ningún password de usuario en archivos ni se modificó una cuenta real. La gestión de roles utiliza la migración de operaciones existente, sin una migración nueva.

@@ -79,3 +79,7 @@ The operations migration and server key remain pending in production. Authentica
 The Spanish login form now uses the existing admin email as username and a password. The magic-link request UI was removed. The new form supports password managers, hiding/showing passwords, actionable errors and one pending submission. Existing server/database authorization remains in effect.
 
 All 52 tests, lint, TypeScript and the production build passed. HTTP checks confirm password inputs, no send-link button, anonymous admin redirect and the unchanged home display. Initial password setup is provided as a private terminal command; no real account was modified. Visual/browser acceptance and a real credential login remain unverified.
+
+## Account settings and users
+
+Ajustes now includes an own-password change form; the owner-only Usuarios tab includes account creation, role assignment, password reset and access revocation. Password setup accepts eight-character passwords subject to the project policy. Account settings also work in the legacy admin. All 62 tests, lint, TypeScript and build passed, plus anonymous-route and cross-origin HTTP checks. No real password was set because the server key is unavailable. Authenticated browser and visual verification remain pending.

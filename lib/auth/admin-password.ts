@@ -1,11 +1,14 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { passwordSchema, AccountOperationError } from "./validation";
 
 export function validateAdminPassword(email: string, password: string) {
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim()))
-    throw new Error("Indica el correo de una cuenta administradora existente.");
-  if (password.length < 12 || Buffer.byteLength(password, "utf8") > 72)
-    throw new Error(
-      "Usa una contraseña de al menos 12 caracteres y máximo 72 bytes.",
+    throw new AccountOperationError(
+      "Indica el correo de una cuenta administradora existente.",
+    );
+  if (!passwordSchema.safeParse(password).success)
+    throw new AccountOperationError(
+      "Usa una contraseña de al menos 8 caracteres y máximo 72 bytes.",
     );
 }
 
@@ -24,7 +27,7 @@ export async function setExistingAdminPassword(
       perPage: 200,
     });
     if (error)
-      throw new Error(
+      throw new AccountOperationError(
         "No se pudieron consultar las cuentas. Comprueba la clave de servidor y el proyecto.",
       );
     userId = data.users.find(
@@ -33,7 +36,7 @@ export async function setExistingAdminPassword(
     if (userId || data.users.length < 200) break;
   }
   if (!userId)
-    throw new Error(
+    throw new AccountOperationError(
       "La cuenta no existe. Créala en Supabase Auth y asígnale acceso antes de continuar.",
     );
 
@@ -44,7 +47,7 @@ export async function setExistingAdminPassword(
     .maybeSingle();
   const legacySchema = error && ["42P01", "PGRST205"].includes(error.code);
   if (error && !legacySchema)
-    throw new Error(
+    throw new AccountOperationError(
       "No se pudo verificar el acceso administrador. No se cambió la contraseña.",
     );
   const authorized = legacySchema
@@ -53,7 +56,7 @@ export async function setExistingAdminPassword(
       )
     : membership && ["owner", "reviewer", "stock"].includes(membership.role);
   if (!authorized)
-    throw new Error(
+    throw new AccountOperationError(
       "Esta cuenta no tiene acceso administrador. No se cambió la contraseña.",
     );
 
@@ -64,7 +67,7 @@ export async function setExistingAdminPassword(
     email_confirm: true,
   });
   if (updateError)
-    throw new Error(
+    throw new AccountOperationError(
       "No se pudo guardar la contraseña. Comprueba la política de contraseñas de Supabase.",
     );
 }

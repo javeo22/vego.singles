@@ -1,6 +1,7 @@
 "use client";
 import type { OperationRole } from "@/lib/operations/types";
 import { ActionForm, Feedback, Field, useData, type List } from "./shared";
+import { AccountSettings } from "./account-settings";
 export function SettingsPanel({
   role,
   revision,
@@ -16,6 +17,7 @@ export function SettingsPanel({
     p = s?.policy;
   return (
     <>
+      <AccountSettings onDone={onDone} />
       <Feedback {...r} />
       {s && (
         <section className="ops-panel">
@@ -174,68 +176,6 @@ export function SettingsPanel({
           <Field label="Nombre" name="label" required />
         </ActionForm>
       </section>
-      <section className="ops-panel">
-        <h2>Acceso del equipo</h2>
-        <ActionForm
-          action="membership"
-          disabled={role !== "owner"}
-          onDone={onDone}
-          payload={(d) => ({ email: d.get("email"), role: d.get("role") })}
-        >
-          <Field label="Correo" name="email" type="email" required />
-          <Field label="Rol" name="role">
-            <option value="owner">Propietario</option>
-            <option value="reviewer">
-              Revisor: identidad, precios y publicación
-            </option>
-            <option value="stock">
-              Stock: recepción, movimientos y solicitudes
-            </option>
-          </Field>
-          <p className="small-note">
-            La persona debe haber ingresado con su correo antes de asignar el
-            rol.
-          </p>
-        </ActionForm>
-        {role === "owner" && <TeamPanel revision={revision} onDone={onDone} />}
-      </section>
-    </>
-  );
-}
-
-function TeamPanel({
-  revision,
-  onDone,
-}: {
-  revision: number;
-  onDone: (m: string) => void;
-}) {
-  const r = useData<List>("type=team", revision);
-  return (
-    <>
-      <Feedback {...r} />
-      {r.data?.rows.map((m) => (
-        <p key={m.email}>
-          {m.email} ·{" "}
-          {
-            (
-              {
-                owner: "Propietario",
-                reviewer: "Revisor",
-                stock: "Stock",
-              } as Record<string, string>
-            )[m.role]
-          }
-        </p>
-      ))}
-      <ActionForm
-        action="revoke_membership"
-        onDone={onDone}
-        label="Revocar acceso"
-        payload={(d) => ({ email: d.get("email") })}
-      >
-        <Field label="Correo a revocar" name="email" type="email" required />
-      </ActionForm>
     </>
   );
 }

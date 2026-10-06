@@ -8,7 +8,7 @@ La [guía de administración](docs/GUIA_ADMIN.md) explica instalación, procesos
 
 ## Acceso administrador
 
-En `/login`, el usuario es el correo administrador existente y el ingreso usa contraseña, sin enviar enlaces mágicos. Si la cuenta no tiene contraseña, un operador puede configurarla sin email con `npm run admin:set-password -- TU_CORREO_ADMIN`; se solicita de forma oculta y requiere la clave de servidor en un entorno privado. Consulta [ACCESO_ADMIN.md](docs/ACCESO_ADMIN.md) para habilitar la cuenta sin cambiar su identidad o permisos.
+En `/login`, el usuario es el correo administrador existente y el ingreso usa contraseña, sin enviar enlaces mágicos. Si la cuenta no tiene contraseña, un operador puede configurarla sin email con `npm run admin:set-password -- TU_CORREO_ADMIN`; se solicita de forma oculta y requiere la clave de servidor en un entorno privado. En **Ajustes → Mi cuenta** puedes cambiar tu contraseña. **Usuarios**, visible para propietarios, permite crear cuentas, administrar roles, restablecer contraseñas y revocar acceso. Consulta [ACCESO_ADMIN.md](docs/ACCESO_ADMIN.md) para habilitar la cuenta sin cambiar su identidad o permisos.
 
 ## Instalación y actualización
 

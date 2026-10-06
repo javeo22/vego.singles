@@ -19,12 +19,11 @@ export async function adminClient() {
   if (!role) throw new OperationError("No tienes acceso a administración", 403);
   return { db, role: role as "owner" | "reviewer" | "stock", user };
 }
-export function serviceClient() {
+export function serviceClient(
+  message = "El registro de solicitudes todavía no está disponible",
+) {
   if (!process.env.SUPABASE_SERVICE_ROLE_KEY)
-    throw new OperationError(
-      "El registro de solicitudes todavía no está disponible",
-      503,
-    );
+    throw new OperationError(message, 503);
   return createSdk(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.SUPABASE_SERVICE_ROLE_KEY,
@@ -83,4 +82,34 @@ export function databaseError(error: {
     "No se pudo completar la operación. Intenta de nuevo.",
     502,
   );
+}
+
+export async function accountAdminClient() {
+  const db = await createClient();
+  const {
+    data: { user },
+    error,
+  } = await db.auth.getUser();
+  if (error || !user)
+    throw new OperationError("Inicia sesión para continuar", 401);
+  const { data: role, error: roleError } = await db.rpc("current_admin_role");
+  if (
+    roleError &&
+    ["42P01", "42883", "PGRST202", "PGRST205"].includes(roleError.code || "")
+  ) {
+    const allowed = (process.env.ADMIN_EMAILS || "")
+      .split(",")
+      .map((email) => email.trim().toLowerCase());
+    if (user.email && allowed.includes(user.email.toLowerCase()))
+      return { db, user, role: "owner" as const, legacy: true };
+    throw new OperationError("No tienes acceso a administración", 403);
+  }
+  if (roleError) databaseError(roleError);
+  if (!role) throw new OperationError("No tienes acceso a administración", 403);
+  return {
+    db,
+    user,
+    role: role as "owner" | "reviewer" | "stock",
+    legacy: false,
+  };
 }

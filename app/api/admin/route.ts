@@ -46,7 +46,7 @@ function fail(e: unknown) {
 }
 export async function GET(request: Request) {
   try {
-    const { db, role } = await adminClient();
+    const { db, role, user } = await adminClient();
     const p = new URL(request.url).searchParams;
     const page = Math.max(0, Math.min(100000, Number(p.get("page")) || 0));
     const type = p.get("type") || "inventory";
@@ -63,7 +63,7 @@ export async function GET(request: Request) {
     if (type === "team") {
       const { data, error } = await db.rpc("admin_team");
       if (error) databaseError(error);
-      return NextResponse.json(data);
+      return NextResponse.json({ ...data, currentEmail: user.email });
     }
     if (type === "counts") {
       const { data, error } = await db.rpc("operation_counts");

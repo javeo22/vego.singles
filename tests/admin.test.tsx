@@ -24,6 +24,9 @@ const { default: userEvent } = await import("@testing-library/user-event");
 const { InventoryPanel } = await import("../components/admin/inventory");
 const { ImportsPanel } = await import("../components/admin/imports");
 const { PricesPanel } = await import("../components/admin/prices");
+const { AccountSettings } =
+  await import("../components/admin/account-settings");
+const { UsersPanel } = await import("../components/admin/users");
 const originalFetch = globalThis.fetch;
 afterEach(() => {
   cleanup();
@@ -268,4 +271,86 @@ test("price review submits selected proposals and exposes stale-review errors", 
   await screen.findByText("Propuesta vencida: precio cambió");
   assert.equal(sent[0].action, "bulk_price");
   assert.deepEqual(sent[0].payload.ids, [proposal]);
+});
+
+test("account settings require confirmation and clear password fields after changing them", async () => {
+  const sent: any[] = [];
+  const done: string[] = [];
+  mock((u, b) => {
+    if (b) {
+      sent.push({ path: u.pathname, ...b });
+      return json({ message: "Contraseña cambiada" });
+    }
+    return json({ rows: [] });
+  });
+  render(<AccountSettings onDone={(message) => done.push(message)} />);
+  const user = userEvent.setup({ document: dom.window.document });
+  await user.type(
+    screen.getByLabelText("Contraseña actual"),
+    "CurrentFixture!",
+  );
+  await user.type(screen.getByLabelText("Nueva contraseña"), "Eight456");
+  await user.type(
+    screen.getByLabelText("Confirmar nueva contraseña"),
+    "Wrong456",
+  );
+  await user.click(screen.getByRole("button", { name: "Cambiar contraseña" }));
+  assert.equal(
+    (await screen.findByRole("alert")).textContent,
+    "Las contraseñas no coinciden.",
+  );
+  assert.equal(sent.length, 0);
+  await user.clear(screen.getByLabelText("Confirmar nueva contraseña"));
+  await user.type(
+    screen.getByLabelText("Confirmar nueva contraseña"),
+    "Eight456",
+  );
+  await user.click(screen.getByRole("button", { name: "Cambiar contraseña" }));
+  await waitFor(() => assert.equal(done.length, 1));
+  assert.equal(sent[0].path, "/api/admin/account");
+  assert.equal(
+    (screen.getByLabelText("Nueva contraseña") as HTMLInputElement).value,
+    "",
+  );
+});
+
+test("users tab protects the owner's own row and creates password accounts through a separate endpoint", async () => {
+  const sent: any[] = [];
+  mock((u, b) => {
+    if (b) {
+      sent.push({ path: u.pathname, ...b });
+      return json({ message: "Usuario creado" });
+    }
+    return json({
+      rows: [
+        {
+          email: "owner@example.com",
+          role: "owner",
+          created_at: new Date().toISOString(),
+        },
+      ],
+      currentEmail: "owner@example.com",
+      total: 1,
+    });
+  });
+  render(<UsersPanel role="owner" revision={0} onDone={() => {}} />);
+  const own = await screen.findByRole("button", {
+    name: "Administrar owner@example.com",
+  });
+  assert.equal((own as HTMLButtonElement).disabled, true);
+  const user = userEvent.setup({ document: dom.window.document });
+  await user.type(
+    screen.getByLabelText("Correo del nuevo usuario"),
+    "new@example.com",
+  );
+  await user.type(screen.getByLabelText("Contraseña inicial"), "Eight456");
+  await user.type(
+    screen.getByLabelText("Confirmar contraseña del usuario"),
+    "Eight456",
+  );
+  await user.click(screen.getByRole("button", { name: "Crear usuario" }));
+  await waitFor(() => assert.equal(sent.length, 1));
+  assert.equal(sent[0].path, "/api/admin/users");
+  assert.equal(sent[0].action, "create_user");
+  assert.equal(sent[0].role, "stock");
 });

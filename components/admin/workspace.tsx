@@ -8,6 +8,8 @@ import { ImportsPanel } from "./imports";
 import { PricesPanel } from "./prices";
 import { RequestsPanel } from "./requests";
 import { SettingsPanel } from "./settings";
+import { AccountSettings } from "./account-settings";
+import { UsersPanel } from "./users";
 import {
   ActionForm,
   Feedback,
@@ -25,11 +27,14 @@ const sections: Record<string, string> = {
   precios: "Precios",
   solicitudes: "Solicitudes",
   ajustes: "Ajustes",
+  usuarios: "Usuarios",
 };
 export default function OperationsWorkspace({
   section = "",
   role,
+  accountOnly = false,
 }: {
+  accountOnly?: boolean;
   section?: string;
   role: OperationRole | null;
 }) {
@@ -49,15 +54,21 @@ export default function OperationsWorkspace({
           </a>
         </div>
         <nav className="wide admin-nav" aria-label="Administración">
-          {Object.entries(sections).map(([path, label]) => (
-            <Link
-              key={path}
-              href={`/admin${path ? `/${path}` : ""}`}
-              aria-current={path === section ? "page" : undefined}
-            >
-              {label}
-            </Link>
-          ))}
+          {Object.entries(sections)
+            .filter(
+              ([path]) =>
+                (!accountOnly || ["", "ajustes", "usuarios"].includes(path)) &&
+                (path !== "usuarios" || role === "owner"),
+            )
+            .map(([path, label]) => (
+              <Link
+                key={path}
+                href={`/admin${path ? `/${path}` : ""}`}
+                aria-current={path === section ? "page" : undefined}
+              >
+                {label}
+              </Link>
+            ))}
         </nav>
       </header>
       <div className="wide ops-content">
@@ -114,7 +125,22 @@ export default function OperationsWorkspace({
             {section === "solicitudes" && (
               <RequestsPanel role={role} revision={revision} onDone={onDone} />
             )}{" "}
-            {section === "ajustes" && (
+            {section === "ajustes" && accountOnly && (
+              <AccountSettings onDone={onDone} />
+            )}
+            {section === "usuarios" &&
+              (accountOnly ? (
+                <section className="ops-panel">
+                  <h2>Gestión de usuarios pendiente de activar</h2>
+                  <p>
+                    Completa la actualización de administración para asignar
+                    roles y crear cuentas.
+                  </p>
+                </section>
+              ) : (
+                <UsersPanel role={role} revision={revision} onDone={onDone} />
+              ))}
+            {section === "ajustes" && !accountOnly && (
               <SettingsPanel role={role} revision={revision} onDone={onDone} />
             )}
           </>

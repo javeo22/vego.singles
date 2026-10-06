@@ -662,3 +662,17 @@ test("upgrade preserves a legacy boolean-availability view and existing merchand
     await upgraded.close();
   }
 });
+
+test("owners cannot revoke or demote their own admin access", async () => {
+  await actor(db);
+  await assert.rejects(
+    command(db, "membership", { email: "jav22vega@gmail.com", role: "stock" }),
+    /propio rol/,
+  );
+  await assert.rejects(
+    command(db, "revoke_membership", { email: "jav22vega@gmail.com" }),
+    /propio acceso/,
+  );
+  const r = (await db.query<any>("select current_admin_role() role")).rows[0];
+  assert.equal(r.role, "owner");
+});

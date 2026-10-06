@@ -130,7 +130,7 @@ Para devoluciones, recibe las copias en la variante de condición correcta con r
 - **Revisor:** identidad, evidencias, propuestas y publicación; no ajusta stock ni confirma ventas.
 - **Stock:** recepción, movimientos, cuarentena y solicitudes; no aprueba precios ni publica.
 
-La cuenta debe existir en Supabase Auth. Asigna/revoca roles en Ajustes; el usuario inicia sesión con ese correo y su contraseña. El sistema impide retirar tu propio acceso de propietario. La autorización también se verifica en los comandos de base de datos, no solo en botones.
+La cuenta debe existir en Supabase Auth. Asigna/revoca roles en Usuarios; el usuario inicia sesión con ese correo y su contraseña. El sistema impide retirar tu propio acceso de propietario. La autorización también se verifica en los comandos de base de datos, no solo en botones.
 
 Rutina diaria: atender solicitudes, revisar identidades de mayor valor, aprobar precios pendientes, revisar trabajos fallidos, ubicar copias sin ubicación y reconciliar conteos. Search/paginación y exportación usan todos los resultados del servidor; los movimientos detallados muestran los 50 más recientes por consulta.
 
