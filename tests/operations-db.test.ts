@@ -36,7 +36,7 @@ async function stage(
     reference,
   });
   const row = (
-    await db.query<any>("select * from import_rows where batch_id=$1", [b.id])
+    await db.query<any>("select * from operation_import_rows where batch_id=$1", [b.id])
   ).rows[0];
   await command(db, "resolve_import", {
     id: row.id,
@@ -182,7 +182,7 @@ test("stale snapshot rolls back after another stock movement", async () => {
     4,
   );
   assert.equal(
-    (await db.query<any>("select status from import_rows where id=$1", [s.row]))
+    (await db.query<any>("select status from operation_import_rows where id=$1", [s.row]))
       .rows[0].status,
     "ready",
   );
@@ -495,7 +495,7 @@ test("job fencing cannot alter import rows after a lease expires", async () => {
   await actor(db);
   const s = await stage("receipt", 1);
   await db.exec("reset role");
-  await db.query("update import_rows set status='needs_review' where id=$1", [
+  await db.query("update operation_import_rows set status='needs_review' where id=$1", [
     s.row,
   ]);
   await actor(db);
@@ -522,7 +522,7 @@ test("job fencing cannot alter import rows after a lease expires", async () => {
     /turno/,
   );
   assert.equal(
-    (await db.query<any>("select status from import_rows where id=$1", [s.row]))
+    (await db.query<any>("select status from operation_import_rows where id=$1", [s.row]))
       .rows[0].status,
     "needs_review",
   );
@@ -682,4 +682,62 @@ test("owners cannot revoke or demote their own admin access", async () => {
   );
   const r = (await db.query<any>("select current_admin_role() role")).rows[0];
   assert.equal(r.role, "owner");
+});
+
+test("operations imports coexist with existing legacy import tables and records", async () => {
+  const upgraded = await database(`
+    create table import_batches(id uuid primary key,filename text);
+    create table import_rows(id uuid primary key,batch_id uuid references import_batches(id),original_data jsonb);
+    insert into import_batches values('00000000-0000-4000-8000-000000000090','legacy.csv');
+    insert into import_rows values('00000000-0000-4000-8000-000000000091','00000000-0000-4000-8000-000000000090','{"Name":"Legacy card"}');
+    grant select on import_batches,import_rows to authenticated;
+  `);
+  try {
+    const before = (await upgraded.query<any>("select original_data from import_rows")).rows;
+    const parsed = parseImport("Name,Set,Card Number,Game,Language,Condition,Variant\nNew card,Set,1,pokemon,en,NM,Holofoil");
+    const batch = await command(upgraded, "stage_import", {
+      name: "New import", hash: parsed.hash, rows: parsed.rows, mode: "receipt", reference: "",
+    });
+    assert.equal((await upgraded.query<any>("select name from operation_import_batches where id=$1", [batch.id])).rows[0].name, "New import");
+    assert.equal((await upgraded.query("select * from operation_import_rows")).rows.length, 1);
+    assert.deepEqual((await upgraded.query<any>("select original_data from import_rows")).rows, before);
+    assert.equal((await upgraded.query<any>("select filename from import_batches")).rows[0].filename, "legacy.csv");
+  } finally { await upgraded.close(); }
+});
+
+test("legacy variant constraints and partial uniqueness support receipts while transfers retain the stock owner", async () => {
+  const upgraded = await database(`
+    alter table listings drop constraint listings_card_printing_id_condition_finish_key;
+    alter table card_printings add constraint card_printings_language_valid check(language in ('english','spanish','unknown'));
+    alter table listings add column archived_at timestamptz;
+    create unique index listings_active_variant on listings(card_printing_id,condition,finish) where archived_at is null;
+    alter table listings add constraint listings_condition_valid check(condition in ('near_mint','lightly_played'));
+    alter table listings add constraint listings_finish_valid check(finish in ('normal','foil'));
+    create table collection_owners(id text primary key);
+    insert into collection_owners values('javi'),('store');
+    alter table stock_lots add column owner_id text default 'store' references collection_owners(id);
+    insert into card_printings(id,game,canonical_name,set_name,collector_number,language) values('00000000-0000-4000-8000-000000000095','pokemon','Legacy owner card','Legacy Set','25','english');
+    insert into listings(id,card_printing_id,condition,finish,published,approved_price_crc) values('00000000-0000-4000-8000-000000000096','00000000-0000-4000-8000-000000000095','near_mint','normal',true,25000);
+    insert into stock_lots(listing_id,location_code,quantity,owner_id) values('00000000-0000-4000-8000-000000000096','UNASSIGNED',2,'javi');
+    create function admin_legacy_mutation() returns text language sql security definer as $$ select 'bypass'::text $$;
+    grant execute on function admin_legacy_mutation() to public,authenticated;
+  `);
+  try {
+    const id = "00000000-0000-4000-8000-000000000096";
+    const printing = "00000000-0000-4000-8000-000000000095";
+    const variant = (await upgraded.query<any>("select condition,finish from operations_inventory where listing_id=$1", [id])).rows[0];
+    assert.deepEqual(variant, { condition: "Near Mint", finish: "Non-foil" });
+    await command(upgraded, "verify_listing", { id, language: "en", condition: "Near Mint", finish: "Non-foil", reason });
+    assert.equal((await upgraded.query<any>("select published from listings where id=$1", [id])).rows[0].published, true);
+    const parsed = parseImport("Name,Set,Card Number,Game,Language,Condition,Variant,Quantity\nLegacy owner card,Legacy Set,25,pokemon,en,NM,Non-foil,1");
+    const batch = await command(upgraded, "stage_import", { name: "Receipt", hash: parsed.hash, rows: parsed.rows, mode: "receipt", reference: "" });
+    const row = (await upgraded.query<any>("select id from operation_import_rows where batch_id=$1", [batch.id])).rows[0];
+    await command(upgraded, "resolve_import", { id: row.id, card_printing_id: printing, language: "en", condition: "Near Mint", finish: "Non-foil", reason });
+    await command(upgraded, "commit_import", { id: batch.id, location: "SHELF1" });
+    assert.equal((await upgraded.query<any>("select count(*)::int count from listings")).rows[0].count, 1);
+    await command(upgraded, "stock_transfer", { id, from: "UNASSIGNED", to: "SHELF1", quantity: 2, reason });
+    const owner = (await upgraded.query<any>("select owner_id,quantity from stock_lots where listing_id=$1 and location_code='SHELF1' and owner_id='javi'", [id])).rows[0];
+    assert.deepEqual(owner, { owner_id: "javi", quantity: 2 });
+    await assert.rejects(upgraded.query("select admin_legacy_mutation()"), /permission denied/);
+  } finally { await upgraded.close(); }
 });

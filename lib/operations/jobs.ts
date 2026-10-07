@@ -26,7 +26,7 @@ export async function runNextJob(
   try {
     if (job.kind === "match_import") {
       const rowResult = await db
-        .from("import_rows")
+        .from("operation_import_rows")
         .select("*")
         .eq("id", job.entity_id)
         .single();

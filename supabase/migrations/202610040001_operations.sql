@@ -4,15 +4,35 @@ create table public.admin_memberships(user_id uuid primary key references auth.u
 insert into public.admin_memberships(user_id,role) select id,'owner' from auth.users where lower(email) in ('jav22vega@gmail.com','alevegaodio@gmail.com') on conflict do nothing;
 create or replace function public.current_admin_role() returns text language sql stable security definer set search_path=public,pg_temp as $$ select case when auth.role()='service_role' then 'owner' else (select role from admin_memberships where user_id=auth.uid()) end $$;
 create or replace function public.is_admin() returns boolean language sql stable security definer set search_path=public,pg_temp as $$ select current_admin_role() is not null $$;
+-- Disable previous administrative RPCs so they cannot bypass the new role checks.
+-- Their definitions and history remain available to the server operator.
+do $$ declare f record; begin
+ for f in select p.oid::regprocedure as signature from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname='public' and p.proname like 'admin\_%' escape '\' loop
+  execute format('revoke execute on function %s from public,anon,authenticated',f.signature);
+  execute format('grant execute on function %s to service_role',f.signature);
+ end loop;
+end $$;
 create function public.require_role(allowed text[]) returns void language plpgsql security definer set search_path=public,pg_temp as $$ begin if coalesce(current_admin_role(),'')<>all(allowed) then raise exception 'No tienes permiso para esta operación' using errcode='42501'; end if; end $$;
 
 alter table card_printings drop constraint if exists card_printings_game_check;
 alter table card_printings add constraint card_printings_game_check check(game in ('pokemon','magic','lorcana','star-wars'));
+alter table card_printings drop constraint if exists card_printings_language_valid;
+alter table card_printings add constraint card_printings_language_valid check(lower(language) in ('en','es','ja','zh','fr','de','it','pt','ko','unknown','english','spanish','japanese','chinese','chinese_simplified','chinese_traditional'));
 alter table card_printings add column identity_verified boolean not null default false, add column treatment text not null default 'standard', add column kind text not null default 'single' check(kind in ('single','sealed'));
 alter table listings add column price_verified boolean not null default false, add column cost_confirmed boolean not null default false, add column price_revision integer not null default 0, add column stock_revision integer not null default 0, add column price_locked_until timestamptz;
 alter table listings add column if not exists archived_at timestamptz;
 -- Preserve existing merchandising decisions; new publication commands enforce full readiness.
 update listings set price_verified=true where published and approved_price_crc>0;
+-- Keep production variant codes readable without rewriting existing listings.
+create function canonical_condition(v text) returns text language sql immutable as $$ select case regexp_replace(lower(v),'[ _-]','','g') when 'mint' then 'Mint' when 'nearmint' then 'Near Mint' when 'lightlyplayed' then 'Lightly Played' when 'moderatelyplayed' then 'Moderately Played' when 'heavilyplayed' then 'Heavily Played' when 'damaged' then 'Damaged' when 'sealedproduct' then 'Sealed Product' else v end $$;
+create function canonical_finish(v text) returns text language sql immutable as $$ select case regexp_replace(lower(v),'[ _-]','','g') when 'normal' then 'Non-foil' when 'nonfoil' then 'Non-foil' when 'holofoil' then 'Holofoil' when 'reverseholofoil' then 'Reverse Holofoil' when 'foil' then 'Foil' when 'etched' then 'Etched' else v end $$;
+alter table listings drop constraint if exists listings_condition_valid;
+alter table listings add constraint listings_condition_valid check(canonical_condition(condition) in ('Mint','Near Mint','Lightly Played','Moderately Played','Heavily Played','Damaged','Sealed Product','unknown'));
+alter table listings drop constraint if exists listings_finish_valid;
+alter table listings add constraint listings_finish_valid check(length(trim(finish)) between 1 and 120);
+alter table listings add column if not exists featured boolean not null default false,add column if not exists featured_rank integer,add column if not exists featured_at timestamptz;
+-- Existing owner IDs/defaults/FKs remain intact; transfers copy the source owner.
+alter table stock_lots add column if not exists owner_id text;
 alter table stock_lots add column quarantined boolean not null default false, add column unit_cost_crc numeric(12,2), add column cost_verified boolean not null default false, add column source_reference text;
 alter table market_prices add column currency text not null default 'USD' check(currency in ('USD','CRC')), add column amount numeric(14,2), add column if not exists source_url text, add column condition text, add column finish text, add column language text, add column exact_variant boolean not null default false;
 update market_prices set amount=market_price_usd;
@@ -32,22 +52,22 @@ insert into operation_settings(id) values(true);
 create table catalog_aliases(id uuid primary key default gen_random_uuid(),game text not null,language text not null,input_set text not null,canonical_set text not null,unique(game,language,input_set));
 create table external_references(provider text not null,external_id text not null,language text not null,treatment text not null default 'standard',card_printing_id uuid not null references card_printings(id),primary key(provider,external_id,language,treatment));
 create unique index verified_printing_identity on card_printings(game,lower(set_name),lower(collector_number),lower(language),treatment,kind,(case when kind='sealed' then lower(canonical_name) else '' end)) where identity_verified;
-create table import_batches(id uuid primary key default gen_random_uuid(),name text not null,file_hash text not null,mode text not null check(mode in ('receipt','snapshot')),created_by uuid,created_at timestamptz not null default now(),receipt_reference text not null default '',unique(file_hash,mode,receipt_reference));
-create table import_rows(id uuid primary key default gen_random_uuid(),batch_id uuid not null references import_batches(id),row_number integer not null,raw jsonb not null,normalized jsonb not null,status text not null default 'needs_review' check(status in ('invalid','needs_review','ready','committed','skipped')),errors jsonb not null default '[]',candidates jsonb not null default '[]',card_printing_id uuid references card_printings(id),listing_id uuid references listings(id),expected_stock_revision integer,committed_at timestamptz,unique(batch_id,row_number));
+create table operation_import_batches(id uuid primary key default gen_random_uuid(),name text not null,file_hash text not null,mode text not null check(mode in ('receipt','snapshot')),created_by uuid,created_at timestamptz not null default now(),receipt_reference text not null default '',unique(file_hash,mode,receipt_reference));
+create table operation_import_rows(id uuid primary key default gen_random_uuid(),batch_id uuid not null references operation_import_batches(id),row_number integer not null,raw jsonb not null,normalized jsonb not null,status text not null default 'needs_review' check(status in ('invalid','needs_review','ready','committed','skipped')),errors jsonb not null default '[]',candidates jsonb not null default '[]',card_printing_id uuid references card_printings(id),listing_id uuid references listings(id),expected_stock_revision integer,committed_at timestamptz,unique(batch_id,row_number));
 create table reservations(id uuid primary key default gen_random_uuid(),request_id uuid not null references purchase_requests(id),listing_id uuid not null references listings(id),quantity integer not null check(quantity>0),status text not null default 'held' check(status in ('held','released','converted')),expires_at timestamptz not null,unique(request_id,listing_id));
 create table operation_jobs(id uuid primary key default gen_random_uuid(),kind text not null check(kind in ('match_import','refresh_price')),entity_id uuid not null,status text not null default 'pending' check(status in ('pending','running','succeeded','needs_review','failed')),attempts integer not null default 0,next_at timestamptz not null default now(),lease_token uuid,lease_until timestamptz,error text,result jsonb,created_at timestamptz not null default now(),updated_at timestamptz not null default now());
 create unique index active_job on operation_jobs(kind,entity_id) where status in ('pending','running');
 create index stock_listing on stock_lots(listing_id);
 create index market_listing_date on market_prices(listing_id,fetched_at desc);
 create index proposals_pending on price_proposals(status,created_at desc);
-create index import_row_batch on import_rows(batch_id,status);
+create index import_row_batch on operation_import_rows(batch_id,status);
 create index held_reservations on reservations(listing_id,expires_at) where status='held';
 create index jobs_ready on operation_jobs(status,next_at);
 create index inquiry_fingerprint on purchase_requests(fingerprint,created_at);
 
 -- All operational tables are private. Only RPC commands can mutate balances/decisions.
 do $$ declare t text; p record; begin
- foreach t in array array['card_printings','listings','stock_lots','market_prices','price_proposals','purchase_requests','purchase_request_items','inventory_events','admin_memberships','locations','operation_receipts','activity_log','operation_settings','catalog_aliases','external_references','import_batches','import_rows','reservations','operation_jobs'] loop
+ foreach t in array array['card_printings','listings','stock_lots','market_prices','price_proposals','purchase_requests','purchase_request_items','inventory_events','admin_memberships','locations','operation_receipts','activity_log','operation_settings','catalog_aliases','external_references','operation_import_batches','operation_import_rows','reservations','operation_jobs'] loop
   execute format('alter table public.%I enable row level security',t);
   for p in select policyname from pg_policies where schemaname='public' and tablename=t loop execute format('drop policy %I on public.%I',p.policyname,t); end loop;
   execute format('create policy admin_read on public.%I for select to authenticated using(public.is_admin())',t);
@@ -86,12 +106,12 @@ declare lot stock_lots; prev integer; l listings; remaining integer; removed int
 end $$;
 
 create view storefront_inventory with (security_barrier=true) as
- select l.id,l.approved_price_crc,l.condition,l.finish,c.kind,greatest(coalesce(st.quantity,0)-coalesce(rs.quantity,0),0)::integer quantity,
+ select l.id,l.approved_price_crc,l.condition,l.finish,l.public_notes,l.featured,l.featured_rank,l.featured_at,c.kind,greatest(coalesce(st.quantity,0)-coalesce(rs.quantity,0),0)::integer quantity,
  jsonb_build_object('canonical_name',c.canonical_name,'set_name',c.set_name,'collector_number',c.collector_number,'language',c.language,'game',c.game,'stock_image_url',c.stock_image_url) card_printings
  from listings l join card_printings c on c.id=l.card_printing_id left join (select listing_id,sum(quantity) quantity from stock_lots where not quarantined group by listing_id) st on st.listing_id=l.id left join (select listing_id,sum(quantity) quantity from reservations where status='held' and expires_at>now() group by listing_id) rs on rs.listing_id=l.id where l.published and l.archived_at is null and l.approved_price_crc>0 and coalesce(st.quantity,0)-coalesce(rs.quantity,0)>0;
 grant select on storefront_inventory to anon,authenticated;
 create view operations_inventory with (security_invoker=true) as
- select l.id listing_id,c.id card_printing_id,c.canonical_name,c.set_name,c.collector_number,c.language,c.game,c.stock_image_url,c.catalog_source,c.external_card_id,c.tcgplayer_product_id,c.identity_verified,c.treatment,c.kind,l.condition,l.finish,l.published,l.archived_at,l.approved_price_crc,l.acquisition_cost,l.cost_confirmed,l.price_verified,l.price_revision,l.stock_revision,l.price_locked_until,
+ select l.id listing_id,c.id card_printing_id,c.canonical_name,c.set_name,c.collector_number,c.language,c.game,c.stock_image_url,c.catalog_source,c.external_card_id,c.tcgplayer_product_id,c.identity_verified,c.treatment,c.kind,canonical_condition(l.condition) condition,canonical_finish(l.finish) finish,l.published,l.archived_at,l.approved_price_crc,l.acquisition_cost,l.cost_confirmed,l.price_verified,l.price_revision,l.stock_revision,l.price_locked_until,
  coalesce((select sum(quantity) from stock_lots where listing_id=l.id),0)::integer quantity,free_stock(l.id) available_quantity,
  (select count(*) from price_proposals p where p.listing_id=l.id and p.status='pending') pending_prices
  from listings l join card_printings c on c.id=l.card_printing_id;
@@ -124,7 +144,7 @@ declare l listings; c card_printings; e market_prices; s operation_settings; tar
 end $$;
 
 create function admin_command(p_action text,p_payload jsonb,p_key uuid) returns jsonb language plpgsql security definer set search_path=public,pg_temp as $$
-declare result jsonb; receipt operation_receipts; bid uuid; rid uuid; pid uuid; lid uuid; r import_rows; b import_batches; c card_printings; l listings; e market_prices; proposal price_proposals; s operation_settings; req purchase_requests; job operation_jobs; item jsonb; norm jsonb; prev integer; target integer; delta integer; left_to_remove integer; qty integer; lot stock_lots; candidate jsonb; lang text; cond text; fin text; why text; src text; old_location text;
+declare result jsonb; receipt operation_receipts; bid uuid; rid uuid; pid uuid; lid uuid; r operation_import_rows; b operation_import_batches; c card_printings; l listings; e market_prices; proposal price_proposals; s operation_settings; req purchase_requests; job operation_jobs; item jsonb; norm jsonb; prev integer; target integer; delta integer; left_to_remove integer; qty integer; lot stock_lots; candidate jsonb; lang text; cond text; fin text; why text; src text; old_location text;
 begin
  perform require_role(array['owner','reviewer','stock']);
  if p_key is null then raise exception 'Falta clave de operación'; end if;
@@ -138,22 +158,22 @@ begin
  when 'stage_import' then
   perform require_role(array['owner','stock','reviewer']);
   if jsonb_array_length(p_payload->'rows') not between 1 and 1000 or length(p_payload->>'name') not between 1 and 120 or p_payload->>'mode' not in ('receipt','snapshot') then raise exception 'Lote inválido'; end if;
-  select id into bid from import_batches where file_hash=p_payload->>'hash' and mode=p_payload->>'mode' and receipt_reference=coalesce(p_payload->>'reference','');
+  select id into bid from operation_import_batches where file_hash=p_payload->>'hash' and mode=p_payload->>'mode' and receipt_reference=coalesce(p_payload->>'reference','');
   if bid is null then
-   insert into import_batches(name,file_hash,mode,created_by,receipt_reference) values(p_payload->>'name',p_payload->>'hash',p_payload->>'mode',auth.uid(),coalesce(p_payload->>'reference','')) returning id into bid;
+   insert into operation_import_batches(name,file_hash,mode,created_by,receipt_reference) values(p_payload->>'name',p_payload->>'hash',p_payload->>'mode',auth.uid(),coalesce(p_payload->>'reference','')) returning id into bid;
    for item in select value from jsonb_array_elements(p_payload->'rows') loop
-    insert into import_rows(batch_id,row_number,raw,normalized,status,errors) values(bid,(item->>'rowNumber')::integer,item->'raw',item,case when jsonb_array_length(item->'errors')>0 then 'invalid' else 'needs_review' end,item->'errors') returning id into rid;
+    insert into operation_import_rows(batch_id,row_number,raw,normalized,status,errors) values(bid,(item->>'rowNumber')::integer,item->'raw',item,case when jsonb_array_length(item->'errors')>0 then 'invalid' else 'needs_review' end,item->'errors') returning id into rid;
     if jsonb_array_length(item->'errors')=0 then insert into operation_jobs(kind,entity_id) values('match_import',rid) on conflict do nothing; end if;
    end loop;
    perform log_operation(p_action,bid,jsonb_build_object('rows',jsonb_array_length(p_payload->'rows'),'mode',p_payload->>'mode'));
   end if;
   result=jsonb_build_object('id',bid,'message','Lote guardado. Revisa las coincidencias.');
  when 'skip_import' then
-  update import_rows set status='skipped' where id=(p_payload->>'id')::uuid and status not in ('committed','skipped');
+  update operation_import_rows set status='skipped' where id=(p_payload->>'id')::uuid and status not in ('committed','skipped');
   result=jsonb_build_object('message','Fila omitida');
  when 'resolve_import' then
   perform require_role(array['owner','reviewer']);
-  select * into r from import_rows where id=(p_payload->>'id')::uuid for update;
+  select * into r from operation_import_rows where id=(p_payload->>'id')::uuid for update;
   if r.id is null or r.status in ('committed','skipped','invalid') then raise exception 'Fila no editable'; end if;
   lang=p_payload->>'language'; cond=p_payload->>'condition'; fin=p_payload->>'finish'; why=trim(p_payload->>'reason');
   if lang not in ('en','es','ja','zh','fr','de','it','pt','ko') or cond not in ('Near Mint','Lightly Played','Moderately Played','Heavily Played','Damaged','Sealed Product') or coalesce(length(fin),0)=0 or coalesce(length(why),0)<3 then raise exception 'Confirma idioma, condición, acabado y motivo'; end if;
@@ -174,24 +194,27 @@ begin
   update card_printings set language=lang,identity_verified=true,metadata=metadata||jsonb_build_object('verification_reason',why),updated_at=now() where id=c.id;
   if c.external_card_id is not null then insert into external_references(provider,external_id,language,treatment,card_printing_id) values(coalesce(c.catalog_source,'manual'),c.external_card_id,lang,c.treatment,c.id) on conflict do nothing; end if;
   insert into catalog_aliases(game,language,input_set,canonical_set) values(c.game,lang,lower(r.normalized->>'setName'),c.set_name) on conflict(game,language,input_set) do update set canonical_set=excluded.canonical_set;
-  select * into l from listings where card_printing_id=c.id and condition=cond and finish=fin for update;
+  select * into l from listings where card_printing_id=c.id and archived_at is null and canonical_condition(condition)=cond and canonical_finish(finish)=fin for update;
   norm=r.normalized||jsonb_build_object('language',lang,'condition',cond,'finish',fin);
-  update import_rows set normalized=norm,card_printing_id=c.id,listing_id=l.id,expected_stock_revision=coalesce(l.stock_revision,0),status='ready',errors='[]' where id=r.id;
+  update operation_import_rows set normalized=norm,card_printing_id=c.id,listing_id=l.id,expected_stock_revision=coalesce(l.stock_revision,0),status='ready',errors='[]' where id=r.id;
   perform log_operation(p_action,r.id,jsonb_build_object('printing',c.id,'reason',why));
   result=jsonb_build_object('message','Coincidencia verificada');
  when 'commit_import' then
   perform require_role(array['owner','stock']);
-  select * into b from import_batches where id=(p_payload->>'id')::uuid for update;
+  select * into b from operation_import_batches where id=(p_payload->>'id')::uuid for update;
   if b.id is null then raise exception 'Lote no encontrado'; end if;
   if not exists(select 1 from locations where code=p_payload->>'location' and active) then raise exception 'Selecciona ubicación'; end if;
-  if b.mode='snapshot' and exists(select 1 from import_rows where batch_id=b.id and status in ('invalid','needs_review')) then raise exception 'Resuelve u omite todas las filas antes de reconciliar un snapshot'; end if;
-  if b.mode='snapshot' and exists(select 1 from import_rows where batch_id=b.id and status='ready' group by card_printing_id,normalized->>'condition',normalized->>'finish' having count(*)>1) then raise exception 'Combina las filas duplicadas de cada variante en el snapshot'; end if;
+  if b.mode='snapshot' and exists(select 1 from operation_import_rows where batch_id=b.id and status in ('invalid','needs_review')) then raise exception 'Resuelve u omite todas las filas antes de reconciliar un snapshot'; end if;
+  if b.mode='snapshot' and exists(select 1 from operation_import_rows where batch_id=b.id and status='ready' group by card_printing_id,normalized->>'condition',normalized->>'finish' having count(*)>1) then raise exception 'Combina las filas duplicadas de cada variante en el snapshot'; end if;
   -- Stable SKU order prevents deadlocks when two overlapping batches commit.
-  for r in select * from import_rows where batch_id=b.id and status='ready' order by card_printing_id,normalized->>'condition',normalized->>'finish',id for update loop
+  for r in select * from operation_import_rows where batch_id=b.id and status='ready' order by card_printing_id,normalized->>'condition',normalized->>'finish',id for update loop
    select * into c from card_printings where id=r.card_printing_id for update;
    if not c.identity_verified or c.language='unknown' then raise exception 'Identidad pendiente'; end if;
-   insert into listings(card_printing_id,condition,finish,acquisition_cost,cost_confirmed) values(c.id,r.normalized->>'condition',r.normalized->>'finish',(r.normalized->>'acquisitionCostCrc')::numeric,r.normalized->>'acquisitionCostCrc' is not null) on conflict(card_printing_id,condition,finish) do nothing;
-   select * into l from listings where card_printing_id=c.id and condition=r.normalized->>'condition' and finish=r.normalized->>'finish' for update;
+   if (select count(*) from listings where card_printing_id=c.id and archived_at is null and canonical_condition(condition)=r.normalized->>'condition' and canonical_finish(finish)=r.normalized->>'finish')>1 then raise exception 'Variantes equivalentes duplicadas: revisa los listados antes de incorporar'; end if;
+   select * into l from listings where card_printing_id=c.id and archived_at is null and canonical_condition(condition)=r.normalized->>'condition' and canonical_finish(finish)=r.normalized->>'finish' for update;
+   if l.id is null then
+    insert into listings(card_printing_id,condition,finish,acquisition_cost,cost_confirmed) values(c.id,r.normalized->>'condition',r.normalized->>'finish',(r.normalized->>'acquisitionCostCrc')::numeric,r.normalized->>'acquisitionCostCrc' is not null) returning * into l;
+   end if;
    qty=(r.normalized->>'quantity')::integer;
    if qty not between 0 and 100000 then raise exception 'Cantidad inválida'; end if;
    if b.mode='receipt' then
@@ -216,7 +239,7 @@ begin
     elsif delta>0 then perform stock_change(l.id,delta,p_payload->>'location','Reconciliación de snapshot',b.id::text); end if;
     perform refresh_listing_cost(l.id);
    end if;
-   update import_rows set status='committed',listing_id=l.id,committed_at=now() where id=r.id;
+   update operation_import_rows set status='committed',listing_id=l.id,committed_at=now() where id=r.id;
   end loop;
   perform log_operation(p_action,b.id,jsonb_build_object('mode',b.mode,'location',p_payload->>'location'));
   result=jsonb_build_object('message','Filas listas incorporadas al inventario');
@@ -236,7 +259,7 @@ begin
    perform refresh_listing_cost(l.id);
   end if;
   if p_payload ? 'condition' or p_payload ? 'finish' then
-   update listings set condition=coalesce(p_payload->>'condition',condition),finish=coalesce(p_payload->>'finish',finish),price_verified=case when coalesce(p_payload->>'condition',condition)<>condition or coalesce(p_payload->>'finish',finish)<>finish then false else price_verified end,published=case when coalesce(p_payload->>'condition',condition)<>condition or coalesce(p_payload->>'finish',finish)<>finish then false else published end where id=l.id;
+   update listings set condition=case when canonical_condition(coalesce(p_payload->>'condition',condition))=canonical_condition(condition) then condition else p_payload->>'condition' end,finish=case when canonical_finish(coalesce(p_payload->>'finish',finish))=canonical_finish(finish) then finish else p_payload->>'finish' end,price_verified=case when canonical_condition(coalesce(p_payload->>'condition',condition))<>canonical_condition(condition) or canonical_finish(coalesce(p_payload->>'finish',finish))<>canonical_finish(finish) then false else price_verified end,published=case when canonical_condition(coalesce(p_payload->>'condition',condition))<>canonical_condition(condition) or canonical_finish(coalesce(p_payload->>'finish',finish))<>canonical_finish(finish) then false else published end where id=l.id;
   end if;
   perform log_operation(p_action,l.id,p_payload-'id');
   result=jsonb_build_object('message','Identidad y costo actualizados');
@@ -258,7 +281,7 @@ begin
   for lot in select * from stock_lots where listing_id=lid and location_code=old_location and not quarantined and quantity>0 order by created_at,id for update loop
    target=least(left_to_remove,lot.quantity);
    update stock_lots set quantity=quantity-target,updated_at=now() where id=lot.id;
-   insert into stock_lots(listing_id,location_code,quantity,unit_cost_crc,cost_verified,source_reference,created_at) values(lid,src,target,lot.unit_cost_crc,lot.cost_verified,lot.source_reference,lot.created_at);
+   insert into stock_lots(listing_id,location_code,quantity,unit_cost_crc,cost_verified,source_reference,created_at,owner_id) values(lid,src,target,lot.unit_cost_crc,lot.cost_verified,lot.source_reference,lot.created_at,lot.owner_id);
    left_to_remove=left_to_remove-target; exit when left_to_remove=0;
   end loop;
 
@@ -393,7 +416,7 @@ begin
   if job.status<>'running' or job.lease_token is distinct from (p_payload->>'token')::uuid or job.lease_until<now() then raise exception 'El trabajo perdió su turno'; end if;
   if p_payload->>'status' not in ('succeeded','needs_review','failed','pending') then raise exception 'Resultado inválido'; end if;
   if job.kind='match_import' and p_payload->>'automatic' is not null then
-   select * into r from import_rows where id=job.entity_id for update;
+   select * into r from operation_import_rows where id=job.entity_id for update;
    select * into c from card_printings where id=(p_payload->>'automatic')::uuid;
    if r.status='needs_review' then
     if not c.identity_verified or canonical_language(c.language)<>r.normalized->>'language' or c.game<>r.normalized->>'game' or not same_collector_number(c.collector_number,r.normalized->>'collectorNumber') or c.kind<>r.normalized->>'kind' or lower(c.set_name)<>lower(coalesce((select canonical_set from catalog_aliases where game=r.normalized->>'game' and language=r.normalized->>'language' and input_set=lower(r.normalized->>'setName') limit 1),r.normalized->>'setName')) or c.treatment<>r.normalized->>'treatment' then raise exception 'La coincidencia exacta cambió'; end if;
@@ -401,7 +424,7 @@ begin
    end if;
   end if;
   update operation_jobs set status=case when p_payload->>'status'='pending' and attempts>=5 then 'failed' else p_payload->>'status' end,error=left(p_payload->>'error',500),result=p_payload->'result',lease_until=null,next_at=now()+make_interval(secs=>least(3600,30*power(2,job.attempts)::integer)),updated_at=now() where id=job.id;
-  if job.kind='match_import' and p_payload->'candidates' is not null then update import_rows set candidates=p_payload->'candidates' where id=job.entity_id and status='needs_review'; end if;
+  if job.kind='match_import' and p_payload->'candidates' is not null then update operation_import_rows set candidates=p_payload->'candidates' where id=job.entity_id and status='needs_review'; end if;
   result=jsonb_build_object('message','Trabajo actualizado');
  when 'retry_job' then
   perform require_role(array['owner','reviewer']);
@@ -525,7 +548,7 @@ declare result jsonb; begin
 end $$;
 create function operation_counts() returns jsonb language plpgsql stable security definer set search_path=public,pg_temp as $$ begin
  perform require_role(array['owner','reviewer','stock']);
- return jsonb_build_object('listings',(select count(*) from listings where archived_at is null),'drafts',(select count(*) from listings where not published and archived_at is null),'identity',(select count(*) from card_printings c where not identity_verified and exists(select 1 from listings l where l.card_printing_id=c.id and l.archived_at is null)),'proposals',(select count(*) from price_proposals where status='pending'),'imports',(select count(*) from import_rows where status in ('needs_review','invalid')),'requests',(select count(*) from purchase_requests where status in ('inquiry','reserved','sold')),'jobs',(select count(*) from operation_jobs where status in ('pending','running')));
+ return jsonb_build_object('listings',(select count(*) from listings where archived_at is null),'drafts',(select count(*) from listings where not published and archived_at is null),'identity',(select count(*) from card_printings c where not identity_verified and exists(select 1 from listings l where l.card_printing_id=c.id and l.archived_at is null)),'proposals',(select count(*) from price_proposals where status='pending'),'imports',(select count(*) from operation_import_rows where status in ('needs_review','invalid')),'requests',(select count(*) from purchase_requests where status in ('inquiry','reserved','sold')),'jobs',(select count(*) from operation_jobs where status in ('pending','running')));
 end $$;
 grant execute on function search_operations_inventory(text,text,text,integer),operation_counts() to authenticated,service_role;
 revoke execute on function search_operations_inventory(text,text,text,integer),operation_counts() from public,anon;
@@ -539,7 +562,7 @@ declare units numeric;unknown_units numeric;cost numeric;begin
 end $$;
 revoke execute on function refresh_listing_cost(uuid) from public,anon,authenticated;
 
-create view operations_jobs with(security_invoker=true) as select j.*,coalesce(c.canonical_name,r.normalized->>'name') card_name,r.batch_id from operation_jobs j left join import_rows r on j.kind='match_import' and r.id=j.entity_id left join listings l on j.kind='refresh_price' and l.id=j.entity_id left join card_printings c on c.id=l.card_printing_id;
+create view operations_jobs with(security_invoker=true) as select j.*,coalesce(c.canonical_name,r.normalized->>'name') card_name,r.batch_id from operation_jobs j left join operation_import_rows r on j.kind='match_import' and r.id=j.entity_id left join listings l on j.kind='refresh_price' and l.id=j.entity_id left join card_printings c on c.id=l.card_printing_id;
 grant select on operations_jobs to authenticated,service_role;
 create function admin_team() returns jsonb language plpgsql stable security definer set search_path=public,pg_temp as $$ declare result jsonb; begin perform require_role(array['owner']);select jsonb_build_object('rows',coalesce(jsonb_agg(jsonb_build_object('email',u.email,'role',m.role,'created_at',m.created_at) order by u.email),'[]'::jsonb),'total',count(*)) into result from admin_memberships m join auth.users u on u.id=m.user_id;return result;end $$;
 revoke execute on function admin_team() from public,anon;

@@ -1,5 +1,6 @@
 export const games = ["pokemon", "magic", "lorcana", "star-wars"] as const;
 export const conditions = [
+  "Mint",
   "Near Mint",
   "Lightly Played",
   "Moderately Played",

@@ -26,6 +26,8 @@ Haz esta parte antes del recorrido. Necesitas acceso al proyecto de Supabase y a
 6. Ingresa en `/login` con tu correo y contraseña. Si tu cuenta solo usaba enlaces, configura su primera contraseña siguiendo [ACCESO_ADMIN.md](ACCESO_ADMIN.md). Luego abre `/admin`. En **Ajustes**, registra ubicaciones, tipo de cambio y fecha/fuente, costos de manejo, margen, comisiones y entrega. No hay un tipo de cambio inventado de fábrica. Los precios USD requieren un cambio fechado de máximo siete días.
 7. Comprueba una carta: verifica identidad, ubícala físicamente, genera/aprueba precio y publica. Crea una consulta desde la tienda y confirma que aparece en **Solicitudes** antes de habilitar toda la operación.
 
+La importación nueva usa `operation_import_batches` y `operation_import_rows`. Si ya existían tablas `import_batches`/`import_rows`, conserva sus registros y funciones como historial anterior; esos lotes no se vuelven a recibir automáticamente ni aparecen como lotes nuevos. La migración adapta las restricciones de idioma/condición/acabado sin cambiar los valores anteriores, reconoce variantes equivalentes al recibir y conserva el propietario de cada lote al trasladarlo. Los RPC administrativos anteriores quedan restringidos al servidor para que no eludan los roles nuevos.
+
 La migración retira lectura pública de tablas privadas y mutaciones directas del personal. No concede stock ficticio ni publica borradores. Los listados que ya estaban publicados conservan esa decisión; sus identidades pendientes aparecen en Revisiones. Cambiar su idioma, condición o acabado puede requerir una nueva revisión de precio/publicación.
 
 ## 2. Recorrido de una hora

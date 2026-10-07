@@ -18,8 +18,8 @@ import { runNextJob } from "@/lib/operations/jobs";
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
 const tables: Record<string, string> = {
-  imports: "import_rows",
-  batches: "import_batches",
+  imports: "operation_import_rows",
+  batches: "operation_import_batches",
   proposals: "price_proposals",
   evidence: "market_prices",
   requests: "purchase_requests",
@@ -115,7 +115,7 @@ export async function GET(request: Request) {
         { ascending: type === "locations" },
       )
       .range(page * 50, page * 50 + 49);
-    // import_rows has no created_at: sort by source row number instead.
+    // operation_import_rows has no created_at: sort by source row number instead.
     if (type === "imports")
       query = db
         .from(table)
