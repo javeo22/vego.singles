@@ -54,3 +54,17 @@ La comprobación de solo lectura mediante REST encontró 294 impresiones, 298 li
 El esquema real ya incluye `market_prices.source_url`. Se corrigió la migración para conservar esa columna y sus valores. Las 19 pruebas PostgreSQL de operaciones pasan, incluida la actualización de un esquema con esa columna y una vista pública de disponibilidad booleana.
 
 La aplicación real de la migración permanece bloqueada: falta un token de gestión Supabase o una conexión SQL. La clave de servidor permite Auth/REST, pero no ejecuta DDL. Se guardó el requisito `SUPABASE_ACCESS_TOKEN` dirigido a `api.supabase.com` en el borrador del entorno; todavía se necesita ingresar el valor de forma segura y aplicar/publicar la configuración.
+
+## Activación en producción: 7 de octubre de 2026
+
+La migración `202610040001_operations.sql` quedó aplicada mediante la API de gestión de Supabase después del preflight SQL. Antes se confirmó una copia física COMPLETED del día, se exportó el esquema público y sus datos a un archivo privado fuera de Git y se reconstruyó una copia local PostgreSQL/PGlite. El ensayo local preservó los 15 esquemas de tabla y todos sus registros originales; verificó recepción sobre una variante existente, traslado conservando propietario y permisos públicos/privados. No se restauró la copia física de Supabase durante estas comprobaciones.
+
+Compatibilidad corregida antes de la aplicación: `market_prices.source_url` existente, tablas anteriores de importación, restricciones de idioma/condición/acabado, índice de variante activo parcial y propietario de los lotes. Los importadores nuevos usan `operation_import_batches`/`operation_import_rows`; las 8 importaciones y 3371 filas anteriores se conservan. Los RPC administrativos anteriores quedan restringidos al servidor. La aplicación live corresponde al cambio `1c68d85`.
+
+Las huellas de todas las columnas originales de las 15 tablas públicas coinciden exactamente antes/después. Se conservan 298 listados, 332 copias y sus propietarios; la nueva vista pública expone los mismos 289 listados, con 322 copias publicadas. Ambos administradores originales tienen rol owner. Se registró la versión, commit y SHA-256 de la migración en `activity_log`. No se volvió a ejecutar el seed ni se inventó stock o ubicaciones físicas.
+
+Validación: 64 pruebas aprobadas, lint y build con TypeScript aprobados. Tras el último ajuste de restricciones de idioma se repitieron las 21 pruebas PostgreSQL y el ensayo sobre la copia real, ambos aprobados.
+
+HTTP autenticado de `https://www.vego.singles`: `/admin` y `/admin/usuarios` devolvieron 200 sin el aviso de migración pendiente; los endpoints counts, batches, inventory y team respondieron 200. Inventory devolvió total 298 con 50 filas en la primera página; el equipo tiene dos propietarios y el importador nuevo está vacío. La configuración pública confirmó registro de solicitudes habilitado. La sesión usada para estas lecturas se cerró con alcance local, sin cerrar otras sesiones. No se crearon solicitudes, ventas ni ajustes físicos reales para hacer las pruebas; la comprobación no sustituye el recorrido visual en navegador ni una prueba simultánea de reservas desde dos conexiones reales.
+
+Pendiente de operación, no de instalación: las 332 copias continúan en UNASSIGNED hasta ubicarlas físicamente; hay 294 identidades pendientes de revisión y el tipo de cambio/costos deben configurarse según la política real del negocio.
