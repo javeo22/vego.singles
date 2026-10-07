@@ -342,15 +342,34 @@ const csvProduct = z.object({
 function tcgSetName(game: string, name: string) {
   if (game !== "pokemon") return normalize(name);
   const value = name.replace(
-    /^(?:SWSH\d+(?:\.\d+)?|SV\d*(?:\.\d+)?|SM\d+(?:\.\d+)?|XY\d+|BW\d+):\s*/i,
+    /^(?:SWSH\d*(?:\.\d+)?|SV\d*(?:\.\d+)?|SM\d*(?:\.\d+)?|XY\d*|BW\d*):\s*/i,
     "",
   );
-  return normalize(value) === "scarlet & violet 151" ? "151" : normalize(value);
+  const n = normalize(value);
+  const aliases: Record<string, string> = {
+    "scarlet & violet 151": "151",
+    "scarlet & violet black star promos": "scarlet & violet promos",
+    "scarlet & violet promo cards": "scarlet & violet promos",
+    "sword & shield black star promos": "sword & shield promos",
+    "swsh black star promos": "sword & shield promos",
+    "sword & shield promo cards": "sword & shield promos",
+    "sun & moon black star promos": "sun & moon promos",
+    "sm black star promos": "sun & moon promos",
+    "sun & moon promo cards": "sun & moon promos",
+  };
+  return aliases[n] || n;
 }
 function productNameMatches(p: PricePrinting, name: string) {
   if (!p.canonical_name) return false;
   const clean = (v: string) => normalize(v.replace(/[—–]/g, "-"));
   if (clean(name) === clean(p.canonical_name)) return true;
+  // Scryfall names both faces; TCGplayer names the front of the same numbered printing.
+  if (
+    p.game === "magic" &&
+    p.canonical_name.includes(" // ") &&
+    clean(name) === clean(p.canonical_name.split(" // ")[0])
+  )
+    return true;
   // TCGplayer appends the printed collector number to some Pokémon names.
   const suffix = name.match(
     /^(.*?)\s+-\s+(\d+[a-z]?(?:\/\d+)?)(?:\s*\(\d+[a-z]?\/\d+\))?$/i,

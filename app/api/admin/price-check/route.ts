@@ -59,7 +59,8 @@ export async function POST(request: Request) {
     if (
       prior?.version === 1 &&
       prior.fingerprint === fingerprint &&
-      prior.references.length
+      prior.references.length &&
+      !prior.failures.length
     ) {
       return NextResponse.json({
         report: {

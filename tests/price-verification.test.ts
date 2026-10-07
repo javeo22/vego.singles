@@ -379,6 +379,65 @@ test("special treatments need exact manual evidence without reading standard-edi
   assert.equal(calls, 0);
   assert.equal(report.status, "unavailable");
 });
+test("known promo-set aliases and Magic face naming retain exact numbered-product checks", async () => {
+  const routes = csvRoutes("Pokemon", 3, "136/189") as Record<
+    string,
+    { results: Record<string, unknown>[]; lastUpdated?: string }
+  >;
+  routes["https://tcgcsv.com/tcgplayer/3/groups"].results[0].name =
+    "SV: Scarlet & Violet Promo Cards";
+  routes["https://tcgcsv.com/tcgplayer/3/1/products"].results[0].name =
+    "Furret";
+  const p = {
+    ...printing,
+    catalog_source: null,
+    external_card_id: null,
+    set_name: "Scarlet & Violet Black Star Promos",
+  };
+  assert.ok(
+    (
+      await checkMarketPrice(p, "Near Mint", "Non-foil", fetcher(routes))
+    ).references.some((r) => r.feed === "tcgcsv"),
+  );
+  routes["https://tcgcsv.com/tcgplayer/3/groups"].results[0].name =
+    "SWSH: Sword & Shield Promo Cards";
+  assert.ok(
+    (
+      await checkMarketPrice(
+        { ...p, set_name: "SWSH Black Star Promos" },
+        "Near Mint",
+        "Non-foil",
+        fetcher(routes),
+      )
+    ).references.some((r) => r.feed === "tcgcsv"),
+  );
+  const magic = csvRoutes("Magic", 1) as Record<
+    string,
+    { results: Record<string, unknown>[]; lastUpdated?: string }
+  >;
+  magic["https://tcgcsv.com/tcgplayer/1/1/products"].results[0].name =
+    "Emet-Selch, Unsundered";
+  const m = {
+    ...printing,
+    game: "magic",
+    set_name: "Set",
+    collector_number: "21/204",
+    canonical_name: "Emet-Selch, Unsundered // Hades, Sorcerer of Eld",
+    catalog_source: null,
+    external_card_id: null,
+  };
+  assert.ok(
+    (await checkMarketPrice(m, "Near Mint", "Non-foil", fetcher(magic)))
+      .references.length,
+  );
+  magic["https://tcgcsv.com/tcgplayer/1/1/products"].results[0].name =
+    "Emet-Selch, Unsundered (Borderless)";
+  assert.equal(
+    (await checkMarketPrice(m, "Near Mint", "Non-foil", fetcher(magic)))
+      .references.length,
+    0,
+  );
+});
 test("price evidence requires both report and reference IDs or neither", () => {
   const input = {
     action: "evidence",

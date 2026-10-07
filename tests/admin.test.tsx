@@ -241,7 +241,19 @@ test("price review submits selected proposals and exposes stale-review errors", 
             status: "pending",
             current_price_crc: 1500,
             suggested_price_crc: 2000,
-            calculation: { warnings: ["Costo por confirmar"] },
+            calculation: {
+              warnings: ["Costo por confirmar"],
+              priceCheck: {
+                reference: {
+                  marketplace: "tcgplayer",
+                  feed: "tcgcsv",
+                  amount: 20,
+                  timestampBasis: "feed_published",
+                  providerUpdatedAt: "2026-10-07T12:00:00Z",
+                },
+                warnings: ["El feed no ofrece precios por condición"],
+              },
+            },
             listings: {
               condition: "Near Mint",
               finish: "Holofoil",
@@ -263,6 +275,8 @@ test("price review submits selected proposals and exposes stale-review errors", 
       name: "Seleccionar propuesta Swinub",
     }),
   );
+  assert.ok(screen.getByText("El feed no ofrece precios por condición"));
+  assert.ok(screen.getByText(/Publicación del feed:/));
   await user.type(
     screen.getByLabelText("Motivo de revisión"),
     "Cotización revisada",

@@ -156,6 +156,20 @@ export function PricesPanel({
                       Tipo de cambio: {p.calculation.fx || "—"} ·{" "}
                       {date(p.calculation.fxAt)}
                     </p>
+                    {p.calculation.priceCheck?.reference && (
+                      <p>
+                        {p.calculation.priceCheck.reference.marketplace} ·{" "}
+                        {p.calculation.priceCheck.reference.feed} · USD{" "}
+                        {p.calculation.priceCheck.reference.amount} ·{" "}
+                        {p.calculation.priceCheck.reference.timestampBasis ===
+                        "feed_published"
+                          ? "Publicación del feed: "
+                          : "Actualización del precio: "}
+                        {date(
+                          p.calculation.priceCheck.reference.providerUpdatedAt,
+                        )}
+                      </p>
+                    )}
                     {p.calculation.sourceUrl && (
                       <a
                         href={p.calculation.sourceUrl}
@@ -166,7 +180,12 @@ export function PricesPanel({
                       </a>
                     )}
                     <ul>
-                      {p.calculation.warnings?.map((w: string) => (
+                      {Array.from(
+                        new Set<string>([
+                          ...(p.calculation.warnings || []),
+                          ...(p.calculation.priceCheck?.warnings || []),
+                        ]),
+                      ).map((w: string) => (
                         <li key={w}>{w}</li>
                       ))}
                     </ul>

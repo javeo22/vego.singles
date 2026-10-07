@@ -29,7 +29,7 @@ La cobertura normal es inglés, Near Mint o producto sellado, y tratamiento est�
 ## Controles y auditoría
 
 - Se conserva el informe privado con importes, fuentes, fechas, errores y una copia de la variante/proveedor consultados.
-- La reutilización durante 15 minutos conserva la fecha original y recalcula vigencia bajo la política actual.
+- Los informes completos pueden reutilizarse durante 15 minutos: conservan la fecha original y recalculan vigencia bajo la política actual. Una nueva consulta vuelve a intentar las fuentes fallidas de un informe parcial.
 - La tolerancia de vigencia se configura en Ajustes (`maxAgeHours`, inicialmente 72). Para operación diaria puede reducirse a 24–48 horas según cuota y frecuencia de actualización. Las diferencias mayores al 15% necesitan evidencia manual revisada, sin un promedio automático.
 - Crear una propuesta usa la referencia guardada en servidor; los campos importados quedan bloqueados en el formulario. Editar impresión, idioma, acabado o mapping invalida el informe. La aprobación vuelve a comprobar variante, referencia, fecha y política dentro de la transacción.
 - Los reintentos no duplican evidencia ni propuestas. La consulta no altera stock ni precios aprobados.
