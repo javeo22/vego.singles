@@ -27,6 +27,8 @@ const { PricesPanel } = await import("../components/admin/prices");
 const { AccountSettings } =
   await import("../components/admin/account-settings");
 const { UsersPanel } = await import("../components/admin/users");
+const { PriceCheckPanel, PriceCheckResults } =
+  await import("../components/admin/price-check");
 const originalFetch = globalThis.fetch;
 afterEach(() => {
   cleanup();
@@ -353,4 +355,125 @@ test("users tab protects the owner's own row and creates password accounts throu
   assert.equal(sent[0].path, "/api/admin/users");
   assert.equal(sent[0].action, "create_user");
   assert.equal(sent[0].role, "stock");
+});
+
+test("price checks keep retry keys and only fill evidence after the reviewer chooses a dated reference", async () => {
+  const sent: any[] = [];
+  const reference = {
+    id: "tcgdex:1:Non-foil:USD",
+    amount: 2,
+    currency: "USD",
+    marketplace: "tcgplayer",
+    feed: "tcgdex",
+    sourceUrl: "https://www.tcgplayer.com/product/1",
+    providerUpdatedAt: "2026-10-07T12:00:00Z",
+    checkedAt: "2026-10-07T13:00:00Z",
+    productId: "1",
+    finish: "Non-foil",
+    conditionCoverage: "market_aggregate",
+    freshness: "fresh",
+  };
+  mock((url, body) => {
+    assert.equal(url.pathname, "/api/admin/price-check");
+    sent.push(body);
+    return sent.length === 1
+      ? json({ error: "Proveedor no disponible" }, 503)
+      : json({
+          report: {
+            version: 1,
+            checkedAt: "2026-10-07T13:00:00Z",
+            fingerprint: "fixture",
+            status: "reference_available",
+            references: [reference],
+            failures: [],
+            warnings: [],
+            independentMarkets: 1,
+            recommendedId: reference.id,
+            maxAgeHours: 72,
+            manualReviewRequired: true,
+          },
+        });
+  });
+  const used: any[] = [];
+  render(
+    <PriceCheckPanel
+      listing={{ ...row, language: "en" } as any}
+      onUse={(r) => used.push(r)}
+    />,
+  );
+  const user = userEvent.setup({ document: dom.window.document });
+  await user.click(
+    screen.getByRole("button", { name: "Verificar precio con fuentes" }),
+  );
+  assert.equal(
+    (await screen.findByRole("alert")).textContent,
+    "Proveedor no disponible",
+  );
+  await user.click(
+    screen.getByRole("button", { name: "Verificar precio con fuentes" }),
+  );
+  await screen.findByText("Referencia disponible para revisar");
+  assert.equal(sent[0].key, sent[1].key);
+  assert.equal(used.length, 0);
+  await user.click(screen.getByRole("button", { name: "Usar referencia" }));
+  assert.equal(used[0].amount, 2);
+  assert.equal(used[0].providerUpdatedAt, "2026-10-07T12:00:00Z");
+});
+
+test("price-check results expose an undated feed without offering it as verified evidence", () => {
+  render(
+    <PriceCheckResults
+      report={{
+        version: 1,
+        checkedAt: "2026-10-07T13:00:00Z",
+        fingerprint: "fixture",
+        variantSnapshot: {
+          listingId: row.listing_id,
+          printingId: null,
+          game: "pokemon",
+          name: "Test Card",
+          set: "Test Set",
+          number: "1",
+          language: "en",
+          condition: "Near Mint",
+          finish: "Non-foil",
+          treatment: "standard",
+          kind: "single",
+          provider: "scryfall",
+          externalId: "id",
+          tcgplayerId: null,
+          identityVerified: true,
+        },
+        status: "needs_review",
+        references: [
+          {
+            id: "undated",
+            amount: 2,
+            currency: "USD",
+            marketplace: "tcgplayer",
+            feed: "scryfall",
+            sourceUrl: "https://scryfall.com/card/id",
+            providerUpdatedAt: null,
+            checkedAt: "2026-10-07T13:00:00Z",
+            productId: "id",
+            finish: "Non-foil",
+            conditionCoverage: "market_aggregate",
+            freshness: "unknown",
+          },
+        ],
+        failures: [],
+        warnings: [],
+        independentMarkets: 0,
+        recommendedId: null,
+        maxAgeHours: 72,
+        manualReviewRequired: true,
+      }}
+      onUse={() =>
+        assert.fail("Undated reference cannot be used automatically")
+      }
+    />,
+  );
+  assert.ok(screen.getByText("Fecha no publicada"));
+  assert.ok(screen.getByText("Vigencia sin acreditar"));
+  assert.equal(screen.queryByRole("button", { name: "Usar referencia" }), null);
 });

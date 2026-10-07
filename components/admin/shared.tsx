@@ -131,6 +131,7 @@ export function Field({
   type = "text",
   value,
   required = false,
+  disabled = false,
   children,
   step,
   min,
@@ -141,6 +142,7 @@ export function Field({
   type?: string;
   value?: string | number;
   required?: boolean;
+  disabled?: boolean;
   children?: ReactNode;
   step?: string;
   min?: string;
@@ -150,7 +152,12 @@ export function Field({
     <label className="ops-field">
       {label}
       {children ? (
-        <select name={name} defaultValue={value} required={required}>
+        <select
+          name={name}
+          defaultValue={value}
+          required={required}
+          disabled={disabled}
+        >
           {children}
         </select>
       ) : (
@@ -159,6 +166,7 @@ export function Field({
           type={type}
           defaultValue={value}
           required={required}
+          disabled={disabled}
           step={step}
           min={min}
           max={max}

@@ -2,6 +2,7 @@
 import { useEffect, useState } from "react";
 import { variantLabel } from "@/lib/catalog";
 import type { InventoryRecord, OperationRole } from "@/lib/operations/types";
+import { PriceCheckPanel, PriceCheckResults } from "./price-check";
 import {
   ActionForm,
   Feedback,
@@ -204,6 +205,23 @@ export function PricesPanel({
               {variantLabel(selected.condition)} · {selected.finish} · Actual{" "}
               {money(selected.approved_price_crc)}
             </p>
+            <PriceCheckPanel
+              key={`${selected.listing_id}:${selected.identity_verified}:${selected.condition}:${selected.finish}`}
+              listing={selected}
+              disabled={role === "stock"}
+              onUse={(r, report) =>
+                setQuote({
+                  amount: r.amount,
+                  currency: r.currency,
+                  provider: `${r.marketplace}-via-${r.feed}`,
+                  sourceUrl: r.sourceUrl,
+                  observedAt: r.providerUpdatedAt,
+                  priceType: "market_reference",
+                  priceCheckId: report.jobId,
+                  priceReferenceId: r.id,
+                })
+              }
+            />
             <ActionForm
               action="enqueue"
               label="Consultar proveedor"
@@ -220,25 +238,43 @@ export function PricesPanel({
               </p>
             </ActionForm>
             <ActionForm
-              key={`${selected.listing_id}:${quote?.sourceUrl || "manual"}`}
+              key={`${selected.listing_id}:${quote?.priceCheckId || quote?.observedAt || "manual"}:${quote?.sourceUrl || "manual"}`}
               action="evidence"
               onDone={onDone}
               disabled={role === "stock" || !selected.identity_verified}
               label="Calcular propuesta"
-              payload={(d) => ({
-                id: selected.listing_id,
-                amount: Number(d.get("amount")),
-                currency: d.get("currency"),
-                provider: d.get("provider"),
-                sourceUrl: d.get("sourceUrl"),
-                observedAt: new Date(String(d.get("observedAt"))).toISOString(),
-                priceType: d.get("priceType"),
-                exactVariant: d.get("confirmed") === "on",
-              })}
+              payload={(d) =>
+                quote?.priceCheckId
+                  ? {
+                      id: selected.listing_id,
+                      amount: quote.amount,
+                      currency: quote.currency,
+                      provider: quote.provider,
+                      sourceUrl: quote.sourceUrl,
+                      observedAt: quote.observedAt,
+                      priceType: "market_reference",
+                      priceCheckId: quote.priceCheckId,
+                      priceReferenceId: quote.priceReferenceId,
+                      exactVariant: d.get("confirmed") === "on",
+                    }
+                  : {
+                      id: selected.listing_id,
+                      amount: Number(d.get("amount")),
+                      currency: d.get("currency"),
+                      provider: d.get("provider"),
+                      sourceUrl: d.get("sourceUrl"),
+                      observedAt: new Date(
+                        String(d.get("observedAt")),
+                      ).toISOString(),
+                      priceType: d.get("priceType"),
+                      exactVariant: d.get("confirmed") === "on",
+                    }
+              }
             >
               <Field
                 label="Precio comparable"
                 name="amount"
+                disabled={!!quote?.priceCheckId}
                 type="number"
                 min="0.01"
                 step="0.01"
@@ -248,6 +284,7 @@ export function PricesPanel({
               <Field
                 label="Moneda"
                 name="currency"
+                disabled={!!quote?.priceCheckId}
                 value={quote?.currency || "USD"}
               >
                 <option>USD</option>
@@ -256,12 +293,14 @@ export function PricesPanel({
               <Field
                 label="Proveedor / sitio"
                 name="provider"
+                disabled={!!quote?.priceCheckId}
                 value={quote?.provider || "manual"}
                 required
               />
               <Field
                 label="Enlace HTTPS de evidencia"
                 name="sourceUrl"
+                disabled={!!quote?.priceCheckId}
                 type="url"
                 value={quote?.sourceUrl || ""}
                 required
@@ -269,6 +308,7 @@ export function PricesPanel({
               <Field
                 label="Fecha de la referencia"
                 name="observedAt"
+                disabled={!!quote?.priceCheckId}
                 type="datetime-local"
                 value={quote?.observedAt ? localTime(quote.observedAt) : ""}
                 required
@@ -276,6 +316,7 @@ export function PricesPanel({
               <Field
                 label="Tipo de evidencia"
                 name="priceType"
+                disabled={!!quote?.priceCheckId}
                 value={quote?.priceType || "condition_quote"}
               >
                 <option value="condition_quote">
@@ -289,6 +330,15 @@ export function PricesPanel({
                 <input type="checkbox" name="confirmed" required />
                 Confirmé impresión, idioma, condición y acabado exactos.
               </label>
+              {quote?.priceCheckId && (
+                <button
+                  type="button"
+                  className="button secondary"
+                  onClick={() => setQuote(null)}
+                >
+                  Registrar otra evidencia manual
+                </button>
+              )}
               {!selected.identity_verified && (
                 <p role="alert">
                   Verifica la identidad en Inventario antes de calcular.
@@ -310,6 +360,9 @@ export function PricesPanel({
           .map((j) => (
             <div className="ops-lot" key={j.id}>
               <p>{j.result?.message || j.error}</p>
+              {j.result?.verification && (
+                <PriceCheckResults report={j.result.verification} />
+              )}
               {j.result?.quote && (
                 <>
                   <p>

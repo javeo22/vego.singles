@@ -74,7 +74,9 @@ Las filas inválidas permanecen visibles: omítelas o corrige el archivo y guard
 
 ## 4. Calcular y revisar precios
 
-En **Precios**, elige la variante exacta y agrega precio, moneda, proveedor, enlace HTTPS, fecha y tipo de evidencia. Confirma idioma, condición y acabado con la carta física. Un precio anunciado y una venta comparable se registran como evidencias distintas.
+En **Precios**, elige la variante y pulsa **Verificar precio con fuentes**. El informe muestra mercado original, feed, moneda, fecha real del proveedor, vigencia y diferencias. Confirma primero la identidad física en Inventario; después puedes **Usar referencia**, confirmar la variante y **Calcular propuesta**. El precio de la tienda solo cambia al aprobar la propuesta. Consulta [VERIFICACION_PRECIOS.md](VERIFICACION_PRECIOS.md) para cobertura y límites.
+
+Para evidencia manual, agrega precio, moneda, proveedor, enlace HTTPS, fecha y tipo de evidencia. Confirma idioma, condición y acabado con la carta física. Un precio anunciado y una venta comparable se registran como evidencias distintas. Una fecha de consulta no demuestra cuándo se actualizó un precio.
 
 El cálculo es:
 
@@ -96,9 +98,10 @@ Puedes bloquear temporalmente un precio en Inventario con un motivo. El bloqueo 
 
 ## 5. Proveedores y cola
 
-- **Scryfall:** búsqueda de impresiones Magic y precios USD disponibles de acabados compatibles. La cotización automática es una referencia para condición Near Mint en inglés.
+- **TCGCSV:** referencia agregada TCGplayer para Pokémon, Magic, Lorcana y Star Wars Unlimited. Usa producto, set, número y acabado exactos. La fecha corresponde a la publicación del archivo; el feed no ofrece SKU por condición ni volumen de ventas.
+- **Scryfall:** búsqueda de impresiones Magic y referencias USD/EUR por acabado. No publica una fecha de actualización del precio, por lo que esa referencia por sí sola no acredita vigencia.
 - **Pokémon TCG API:** búsqueda de cartas en inglés y precios de mercado disponibles por acabado. La clave `POKEMON_TCG_API_KEY` es opcional según tu acceso/cuota.
-- **TCGdex:** consulta de un identificador conocido usando Provider=`tcgdex`, External ID y Language. Su cobertura por idioma debe validarse con tu colección; no inventa cotizaciones.
+- **TCGdex:** precios Pokémon TCGplayer por acabado y fechas publicadas. Cuando el ID viene de otro catálogo, resuelve set/número/nombre antes de consultar; no copia IDs entre proveedores. Cardmarket EUR solo se admite para el acabado no ambiguo.
 - **TCGplayer directo:** consulta por `tcgplayer_product_id` existente si tienes `TCGPLAYER_ACCESS_TOKEN` autorizado. La renovación de ese token se gestiona con tu acceso de proveedor. La verificación manual permite conservar un identificador; importar asociaciones SKU detalladas de TCGplayer requiere validarlas con su catálogo.
 - **Otras condiciones, idiomas, juegos o productos sin cobertura:** verificación y evidencia manual. No se sustituye una carta japonesa/china por una inglesa ni se aplica un descuento de condición inventado.
 

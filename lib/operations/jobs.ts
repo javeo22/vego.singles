@@ -1,6 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { matchCandidates, type CatalogCard, type ImportRow } from "./imports";
-import { CoverageError, searchCatalog, marketQuote } from "./providers";
+import { CoverageError, searchCatalog } from "./providers";
+import { checkMarketPrice, referenceToQuote } from "./market-sources";
 type Job = {
   id: string;
   kind: string;
@@ -100,15 +101,41 @@ export async function runNextJob(
         );
       if (l.price_locked_until && Date.parse(l.price_locked_until) > Date.now())
         throw new CoverageError("Precio bloqueado por decisión manual");
-      const quote = await marketQuote(l, l.condition, l.finish, request);
+      const settings = await db
+        .from("operation_settings")
+        .select("policy")
+        .single();
+      if (settings.error) throw new Error("No se pudo consultar la política");
+      const verification = {
+        ...(await checkMarketPrice(
+          l,
+          l.condition,
+          l.finish,
+          request,
+          settings.data.policy.maxAgeHours,
+        )),
+        jobId: job.id,
+      };
+      const selected = verification.references.find(
+        (r) => r.id === verification.recommendedId,
+      );
+      const quote = selected
+        ? {
+            ...referenceToQuote(selected),
+            priceCheckId: job.id,
+            priceReferenceId: selected.id,
+          }
+        : null;
       await rpc(db, "finish_job", {
         id: job.id,
         token: job.lease_token,
         status: "needs_review",
         result: {
           quote,
-          message:
-            "Referencia obtenida. Confirma variante y calcula propuesta en Precios.",
+          verification,
+          message: quote
+            ? "Referencia contrastada. Confirma condición y variante antes de calcular."
+            : "La consulta necesita revisión. Comprueba cobertura, fechas y coincidencia exacta.",
         },
       });
     }

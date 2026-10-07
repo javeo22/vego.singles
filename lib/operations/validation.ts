@@ -8,7 +8,7 @@ const url = z
   .string()
   .url()
   .refine((v) => v.startsWith("https://"), "Usa un enlace HTTPS");
-const action = <T extends z.ZodRawShape>(name: string, shape: T) =>
+const action = <N extends string, T extends z.ZodRawShape>(name: N, shape: T) =>
   z
     .object({
       action: z.literal(name),
@@ -83,7 +83,12 @@ export const commandSchema = z.union([
       "sale_comparable",
     ]),
     exactVariant: z.literal(true),
-  }),
+    priceCheckId: id.optional(),
+    priceReferenceId: z.string().min(1).max(250).optional(),
+  }).refine(
+    (v) => !!v.payload.priceCheckId === !!v.payload.priceReferenceId,
+    "La referencia necesita el identificador de su verificación",
+  ),
   action("bulk_price", {
     ids: z.array(id).min(1).max(50),
     approve: z.boolean(),

@@ -26,7 +26,7 @@ const tables: Record<string, string> = {
   items: "purchase_request_items",
   lots: "stock_lots",
   events: "inventory_events",
-  jobs: "operations_jobs",
+  jobs: "operation_jobs",
   settings: "operation_settings",
   locations: "locations",
   activity: "activity_log",
@@ -165,6 +165,45 @@ export async function POST(request: Request) {
       key = input.key;
     } else {
       const input = commandSchema.parse(raw);
+      if (input.action === "evidence" && input.payload.priceCheckId) {
+        const p = input.payload;
+        const saved = await db
+          .from("operation_jobs")
+          .select("result,entity_id")
+          .eq("id", p.priceCheckId)
+          .single();
+        if (saved.error) databaseError(saved.error);
+        const ref = saved.data.result?.verification?.references?.find(
+          (r: { id: string }) => r.id === p.priceReferenceId,
+        );
+        if (
+          !ref ||
+          saved.data.entity_id !== p.id ||
+          p.amount !== ref.amount ||
+          p.currency !== ref.currency ||
+          p.sourceUrl !== ref.sourceUrl ||
+          p.provider !== `${ref.marketplace}-via-${ref.feed}` ||
+          p.observedAt !== ref.providerUpdatedAt ||
+          p.priceType !== "market_reference"
+        )
+          throw new OperationError(
+            "La evidencia cambió. Consulta el precio de nuevo.",
+            409,
+          );
+        const { data, error } = await db.rpc(
+          "create_price_proposal_from_check",
+          {
+            p_listing: p.id,
+            p_check: p.priceCheckId,
+            p_reference_id: p.priceReferenceId,
+            p_key: input.key,
+            p_confirmed: p.exactVariant,
+          },
+        );
+        if (error) databaseError(error);
+        revalidatePath("/");
+        return NextResponse.json(data);
+      }
       action = input.action;
       payload = input.payload;
       key = input.key;
