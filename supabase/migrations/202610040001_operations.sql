@@ -14,7 +14,7 @@ alter table listings add column if not exists archived_at timestamptz;
 -- Preserve existing merchandising decisions; new publication commands enforce full readiness.
 update listings set price_verified=true where published and approved_price_crc>0;
 alter table stock_lots add column quarantined boolean not null default false, add column unit_cost_crc numeric(12,2), add column cost_verified boolean not null default false, add column source_reference text;
-alter table market_prices add column currency text not null default 'USD' check(currency in ('USD','CRC')), add column amount numeric(14,2), add column source_url text, add column condition text, add column finish text, add column language text, add column exact_variant boolean not null default false;
+alter table market_prices add column currency text not null default 'USD' check(currency in ('USD','CRC')), add column amount numeric(14,2), add column if not exists source_url text, add column condition text, add column finish text, add column language text, add column exact_variant boolean not null default false;
 update market_prices set amount=market_price_usd;
 alter table price_proposals drop constraint if exists price_proposals_status_check;
 alter table price_proposals add constraint price_proposals_status_check check(status in ('pending','approved','rejected','superseded'));

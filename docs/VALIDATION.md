@@ -44,3 +44,13 @@ Se comprobó la entrada oculta del comando de contraseña con datos ficticios y 
 Los 62 tests pasan, con lint, TypeScript y build. Ajustes permite cambiar la contraseña de la propia cuenta, verificando primero contraseña actual e identidad de sesión, incluso con el panel anterior. Usuarios permite a propietarios crear cuentas con contraseña, cambiar roles, restablecer contraseñas de otros administradores activos y revocar acceso. Las pruebas verifican permisos, protección contra revocar/degradar el propio rol, errores de creación parcial, confirmación de contraseña y ausencia de contraseñas en los recibos de roles.
 
 HTTP del servidor compilado: Ajustes/Usuarios anónimos redirigen a login; las dos APIs de cuenta rechazan sesiones ausentes con 401 y orígenes externos con 403. El login responde 200. La comprobación del login real con las credenciales solicitadas devolvió `invalid_credentials`; no se ha establecido esa contraseña. La creación/restablecimiento de cuentas y la contraseña inicial real siguen pendientes por falta de SUPABASE_SERVICE_ROLE_KEY; no se escribió ningún password de usuario en archivos ni se modificó una cuenta real. La gestión de roles utiliza la migración de operaciones existente, sin una migración nueva.
+
+## Preflight de migración: 7 de octubre de 2026
+
+La clave de servidor ya permite leer el proyecto. Supabase Auth aceptó las credenciales de la cuenta propietaria y el usuario confirmó que pudo entrar en la tienda publicada. El RPC `current_admin_role` sigue ausente (`PGRST202`), por lo que la administración nueva continúa pendiente de instalación.
+
+La comprobación de solo lectura mediante REST encontró 294 impresiones, 298 listados, 298 lotes, 289 listados publicados y 332 copias en UNASSIGNED. Todos los listados publicados tienen stock positivo. Hay 12 976 referencias de mercado, 109 propuestas y una solicitud con una línea. No se modificaron estos registros. Esta comprobación REST no sustituye el preflight SQL, la copia de seguridad ni una prueba de restauración.
+
+El esquema real ya incluye `market_prices.source_url`. Se corrigió la migración para conservar esa columna y sus valores. Las 19 pruebas PostgreSQL de operaciones pasan, incluida la actualización de un esquema con esa columna y una vista pública de disponibilidad booleana.
+
+La aplicación real de la migración permanece bloqueada: falta un token de gestión Supabase o una conexión SQL. La clave de servidor permite Auth/REST, pero no ejecuta DDL. Se guardó el requisito `SUPABASE_ACCESS_TOKEN` dirigido a `api.supabase.com` en el borrador del entorno; todavía se necesita ingresar el valor de forma segura y aplicar/publicar la configuración.

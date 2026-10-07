@@ -9,6 +9,8 @@ Haz esta parte antes del recorrido. Necesitas acceso al proyecto de Supabase y a
 1. Haz una copia de seguridad de la base de datos y prueba la actualización en un proyecto de ensayo.
 2. Ejecuta `supabase/operations_preflight.sql` en el SQL Editor. Compara los listados publicados con el stock real. La producción consultada tenía 289 listados y el campo `available` era booleano; ese campo no acredita cuántas copias hay. Si hay listados sin lotes, prepara su recepción o conteo físico.
 3. En un proyecto existente, ejecuta **solo** `supabase/migrations/202610040001_operations.sql`. No vuelvas a ejecutar el seed de inventario. La migración es transaccional: un error cancela la actualización completa. No reemplaza la vista `public_listings`, los precios aprobados ni los campos de vitrina existentes. Crea `storefront_inventory` para cantidades reales, descontando reservas y cuarentena. Los productos sin stock real dejan de aparecer en esa vista.
+
+   Usa la versión actual del archivo: conserva `market_prices.source_url` si esa columna ya existe en producción. Para que Codex ejecute el SQL mediante la API de gestión, configura `SUPABASE_ACCESS_TOKEN` como secreto dirigido a `api.supabase.com` en el entorno cloud. Se trata de un token personal de Supabase con acceso al proyecto; `SUPABASE_SERVICE_ROLE_KEY` no permite ejecutar migraciones SQL. Como alternativa, ejecuta el preflight y la migración en el SQL Editor del proyecto.
 4. Los propietarios originales que ya tenían cuenta quedan registrados en `admin_memberships`. Para otro propietario, primero crea su cuenta de correo/contraseña en Supabase Auth y luego ejecuta en el SQL Editor, reemplazando el correo:
 
    ```sql

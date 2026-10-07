@@ -626,11 +626,13 @@ test("stock reductions consume split lots and snapshots recalculate remaining co
   assert.equal(Number(row.acquisition_cost), 9000);
 });
 
-test("upgrade preserves a legacy boolean-availability view and existing merchandising", async () => {
+test("upgrade preserves a legacy boolean-availability view, merchandising and existing market source URLs", async () => {
   const upgraded = await database(`
   alter table listings add column archived_at timestamptz,add column featured boolean not null default false,add column featured_rank integer;
+  alter table market_prices add column source_url text;
   insert into card_printings(id,game,canonical_name,set_name,collector_number,language) values('00000000-0000-4000-8000-000000000099','pokemon','Legacy Card','Legacy Set','25','english');
   insert into listings(card_printing_id,condition,finish,published,approved_price_crc,featured,featured_rank) values('00000000-0000-4000-8000-000000000099','Near Mint','Holofoil',true,25000,true,1);
+  insert into market_prices(listing_id,provider,market_price_usd,source_url) select id,'manual',50,'https://example.com/legacy-price' from listings;
   drop view public_listings;
   create view public_listings as select l.id,l.approved_price_crc,l.condition,l.finish,l.public_notes,l.featured,l.featured_rank,true as available,jsonb_build_object('canonical_name',c.canonical_name,'language',c.language) card_printings from listings l join card_printings c on c.id=l.card_printing_id where l.published;
   grant select on public_listings to anon;
@@ -658,6 +660,11 @@ test("upgrade preserves a legacy boolean-availability view and existing merchand
     ).rows[0];
     assert.equal(preserved.price_verified, true);
     assert.equal(preserved.approved_price_crc, 25000);
+    const market = (
+      await upgraded.query<any>("select source_url,amount from market_prices")
+    ).rows[0];
+    assert.equal(market.source_url, "https://example.com/legacy-price");
+    assert.equal(Number(market.amount), 50);
   } finally {
     await upgraded.close();
   }
