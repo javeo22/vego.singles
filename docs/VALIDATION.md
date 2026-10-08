@@ -80,3 +80,22 @@ La migración `202610070001_price_verification.sql` se aplicó tras las pruebas 
 El endpoint publicado `/api/admin/price-check` respondió 401 sin sesión y 200 autenticado para dos variantes reales Pokémon/Magic, conservando ambos informes privados. El historial de trabajos respondió 200. Los informes muestran identidad pendiente y fallos de cobertura cuando corresponden; no se generaron propuestas ni cambios de precio/stock. La sesión de prueba se cerró con alcance local. Los nombres con dos caras y familias de promos se ajustaron con reglas explícitas tras estas comprobaciones; los tratamientos Prerelease/Staff/Borderless siguen requiriendo revisión exacta.
 
 Se repitió la comprobación autenticada tras publicar `d601f93`: Magic con dos caras devolvió también TCGCSV USD 2.03 con fecha de publicación, y el set promocional Pokémon se resolvió mientras se mantuvo bloqueada la asociación TCGCSV cuyo tratamiento/nombre no coincidía. Ambas consultas devolvieron 200 y conservaron identidad pendiente; el historial volvió a responder 200. La suite final aprobó 85 pruebas; la extensión de alias SWSH/SM volvió a pasar las 14 pruebas del verificador. No se alteraron precios aprobados ni stock.
+
+## Guardado de tipo de cambio: 8 de octubre de 2026
+
+El formulario publicado admitía un enlace vacío, pero el guardado real devolvía 502. El RPC por PostgREST devolvió `21000: UPDATE requires a WHERE clause`:
+producción activa la protección de actualizaciones sin filtro, que no está
+cargada en PGlite ni en la conexión de consultas SQL de gestión.
+
+`202610080003_settings_filter.sql` limita a `id=true` las actualizaciones de la
+tabla singleton `operation_settings`, tanto en `set_pricing_exchange` como en
+el comando `settings`. Conserva roles, fechas, auditoría, reintentos y fuentes
+opcionales. Su aplicación no alteró registros existentes de inventario,
+evidencias, propuestas ni configuración.
+
+Las 108 pruebas pasaron con la migración. Después se comprobó el guardado real
+por `POST /api/admin` en producción con la tasa y fecha del reporte del usuario,
+sin enlace: respondió 200 y la lectura posterior confirmó tasa, fecha y fuente
+nula. Repetir la misma clave respondió 200 y avanzó la revisión una sola vez.
+Los valores de política y comisiones no se modificaron. La comprobación de
+solo lectura del formulario anterior no cubría este fallo de guardado.
