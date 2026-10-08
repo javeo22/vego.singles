@@ -46,7 +46,7 @@ export function PriceExchange({
           </h3>
           <p>
             {ready
-              ? `Fecha comprobada: ${priceDate(settings!.fx_at)}`
+              ? `Fecha registrada: ${priceDate(settings!.fx_at)}`
               : "Necesitamos un cambio vigente para calcular un precio en colones desde dólares."}
           </p>
         </div>
@@ -81,7 +81,7 @@ export function PriceExchange({
           payload={(d) => ({
             fx: Number(d.get("fx")),
             observedAt: new Date(String(d.get("observedAt"))).toISOString(),
-            sourceUrl: d.get("sourceUrl"),
+            sourceUrl: String(d.get("sourceUrl") || "").trim() || null,
           })}
         >
           <Field
@@ -96,19 +96,19 @@ export function PriceExchange({
           />
           <Field
             name="observedAt"
-            label="Fecha y hora del cambio publicado"
+            label="Fecha y hora del tipo de cambio"
             type="datetime-local"
             required
           />
           <Field
             name="sourceUrl"
-            label="Enlace donde comprobaste el cambio"
+            label="Enlace de referencia (opcional)"
             type="url"
             value={settings?.fx_source || ""}
-            required
           />
           <p className="small-note">
-            Usa una fecha real de publicación, de los últimos 7 días.{" "}
+            Puedes ingresar el cambio manualmente, sin enlace. Usa una fecha de
+            los últimos 7 días.{" "}
             <a
               href="https://www.bccr.fi.cr/indicadores-economicos/tipos-de-cambio"
               target="_blank"

@@ -28,6 +28,8 @@ const { default: userEvent } = await import("@testing-library/user-event");
 const { InventoryPanel } = await import("../components/admin/inventory");
 const { ImportsPanel } = await import("../components/admin/imports");
 const { PricesPanel } = await import("../components/admin/prices");
+const { PriceExchange } = await import("../components/admin/price-exchange");
+const { commandSchema } = await import("../lib/operations/validation");
 const { AccountSettings } =
   await import("../components/admin/account-settings");
 const { UsersPanel } = await import("../components/admin/users");
@@ -938,6 +940,55 @@ test("missing exchange does not lock manual fields or prevent a CRC-only calcula
   );
   await user.selectOptions(screen.getByLabelText("Moneda"), "CRC");
   assert.equal(calculate.disabled, false);
+});
+
+test("an owner can submit a manual exchange rate without a reference link", async () => {
+  const sent: any[] = [],
+    done: string[] = [];
+  mock((_url, body) => {
+    const parsed = commandSchema.parse(body);
+    sent.push(parsed);
+    return json({ message: "Tipo de cambio guardado" });
+  });
+  render(
+    <PriceExchange
+      role="owner"
+      settings={{ fx: null, fx_at: null }}
+      onDone={(m) => done.push(m)}
+    />,
+  );
+  const user = userEvent.setup({ document: dom.window.document });
+  await user.click(
+    screen.getByRole("button", { name: "Configurar tipo de cambio" }),
+  );
+  await user.type(screen.getByLabelText("Colones por 1 dólar"), "510.25");
+  (
+    screen.getByLabelText("Fecha y hora del tipo de cambio") as HTMLInputElement
+  ).value = "2026-10-08T10:00";
+  await user.click(
+    screen.getByRole("button", { name: "Guardar tipo de cambio" }),
+  );
+  await waitFor(() => assert.equal(done.length, 1));
+  assert.equal(sent.length, 1);
+  assert.equal(sent[0].action, "set_price_fx");
+  assert.equal(sent[0].payload.fx, 510.25);
+  assert.equal(sent[0].payload.sourceUrl, null);
+  for (const sourceUrl of [undefined, null, "", "https://www.bccr.fi.cr/"]) {
+    assert.equal(
+      commandSchema.safeParse({
+        ...sent[0],
+        payload: { ...sent[0].payload, sourceUrl },
+      }).success,
+      true,
+    );
+  }
+  assert.equal(
+    commandSchema.safeParse({
+      ...sent[0],
+      payload: { ...sent[0].payload, sourceUrl: "http://example.com/" },
+    }).success,
+    false,
+  );
 });
 
 test("expired proposals have a targeted recovery action instead of an approval form", async () => {

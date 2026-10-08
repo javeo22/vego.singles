@@ -293,6 +293,98 @@ test("focused exchange updates preserve policy and fees, invalidate drafts and r
   await assert.rejects(approve(p), /reglas de precios cambiaron/);
 });
 
+test("manual exchange rates accept empty sources, audit the entry and retry without changing inventory", async () => {
+  const p = await prepare();
+  const prior = (await db.query<any>("select * from operation_settings"))
+    .rows[0];
+  const before = (
+    await db.query<any>(
+      "select approved_price_crc,price_revision from listings where id=$1",
+      [p.id],
+    )
+  ).rows[0];
+  const key = crypto.randomUUID(),
+    at = new Date().toISOString();
+  let result: unknown;
+  for (const source of [null, "", "   "]) {
+    const current = await db.query<any>(
+      "select set_pricing_exchange(511.25,$1,$2,$3) result",
+      [at, source, key],
+    );
+    if (result) assert.deepEqual(current.rows, result);
+    result = current.rows;
+  }
+  const after = (await db.query<any>("select * from operation_settings"))
+    .rows[0];
+  assert.equal(Number(after.fx), 511.25);
+  assert.equal(after.fx_source, null);
+  assert.equal(after.revision, prior.revision + 1);
+  assert.deepEqual(after.policy, prior.policy);
+  assert.equal(after.delivery_fee_crc, prior.delivery_fee_crc);
+  assert.deepEqual(
+    (
+      await db.query<any>(
+        "select approved_price_crc,price_revision from listings where id=$1",
+        [p.id],
+      )
+    ).rows[0],
+    before,
+  );
+  const receipt = (
+    await db.query<any>("select payload from operation_receipts where key=$1", [
+      key,
+    ])
+  ).rows[0];
+  assert.equal(receipt.payload.source, null);
+  assert.equal((await readiness(p.proposalId)).code, "policy_changed");
+});
+
+test("optional exchange sources retain validation of dates, values and supplied links", async () => {
+  const prior = (await db.query<any>("select * from operation_settings"))
+    .rows[0];
+  for (const [fx, at, source] of [
+    [510, new Date().toISOString(), "http://example.com/"],
+    [0, new Date().toISOString(), null],
+    [510, null, null],
+    [510, new Date(Date.now() - 8 * 86400000).toISOString(), null],
+    [510, new Date(Date.now() + 2 * 3600000).toISOString(), null],
+  ]) {
+    await assert.rejects(
+      db.query("select set_pricing_exchange($1,$2,$3,$4)", [
+        fx,
+        at,
+        source,
+        crypto.randomUUID(),
+      ]),
+      /HTTPS|tipo de cambio válido/,
+    );
+  }
+  assert.deepEqual(
+    (await db.query<any>("select * from operation_settings")).rows[0],
+    prior,
+  );
+});
+
+test("the full settings form also accepts a manual rate with no source link", async () => {
+  const prior = (await db.query<any>("select * from operation_settings"))
+    .rows[0];
+  await command(db, "settings", {
+    policy: prior.policy,
+    fx: 525,
+    fxAt: new Date().toISOString(),
+    fxSource: null,
+    dailyJobLimit: prior.daily_job_limit,
+    deliveryFeeCrc: prior.delivery_fee_crc,
+  });
+  const after = (await db.query<any>("select * from operation_settings"))
+    .rows[0];
+  assert.equal(Number(after.fx), 525);
+  assert.equal(after.fx_source, null);
+  assert.deepEqual(after.policy, prior.policy);
+  assert.equal(after.daily_job_limit, prior.daily_job_limit);
+  assert.equal(after.delivery_fee_crc, prior.delivery_fee_crc);
+});
+
 test("roles cannot bypass final-price, card-confirmation or exchange permissions", async () => {
   const p = await prepare();
   await actor(db, stock);

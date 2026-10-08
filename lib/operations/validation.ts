@@ -45,7 +45,7 @@ export const commandSchema = z.union([
   action("set_price_fx", {
     fx: z.number().min(1).max(10000),
     observedAt: z.string().datetime(),
-    sourceUrl: url,
+    sourceUrl: z.union([url, z.literal("")]).nullable().optional(),
   }),
   action("resolve_import", {
     id,

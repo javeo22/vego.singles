@@ -124,7 +124,7 @@ export function SettingsPanel({
               }
             />
             <Field
-              label="Fuente HTTPS del tipo de cambio"
+              label="Enlace del tipo de cambio (opcional)"
               name="fxSource"
               type="url"
               value={s.fx_source || ""}
@@ -147,9 +147,10 @@ export function SettingsPanel({
               required
             />
             <p className="small-note">
-              Tipo de cambio vigente por 7 días. Cambiar la política invalida
-              propuestas pendientes. Precios calculados antes de impuestos;
-              confirma tu tratamiento fiscal antes de usar márgenes.
+              Puedes ingresar el tipo de cambio manualmente, sin enlace. Es
+              vigente por 7 días. Cambiar la política invalida propuestas
+              pendientes. Precios calculados antes de impuestos; confirma tu
+              tratamiento fiscal antes de usar márgenes.
             </p>
           </ActionForm>
         </section>

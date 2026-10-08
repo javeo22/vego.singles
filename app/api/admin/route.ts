@@ -214,7 +214,7 @@ export async function POST(request: Request) {
                   payload: {
                     p_fx: input.payload.fx,
                     p_at: input.payload.observedAt,
-                    p_source: input.payload.sourceUrl,
+                    p_source: input.payload.sourceUrl || null,
                     p_key: input.key,
                   },
                 };
