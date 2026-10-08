@@ -45,4 +45,5 @@ export type InventoryRecord = {
   cost_confirmed: boolean;
   price_locked_until: string | null;
   kind: string;
+  treatment?: string;
 };

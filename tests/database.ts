@@ -48,6 +48,12 @@ export async function database(beforeOperations = "") {
     ),
   );
   await db.exec(
+    await readFile(
+      "supabase/migrations/202610080001_price_workflow.sql",
+      "utf8",
+    ),
+  );
+  await db.exec(
     `insert into admin_memberships values ('${reviewer}','reviewer',now()),('${stock}','stock',now());`,
   );
   await actor(db, owner);

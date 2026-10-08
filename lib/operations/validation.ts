@@ -17,6 +17,36 @@ const action = <N extends string, T extends z.ZodRawShape>(name: N, shape: T) =>
     })
     .strict();
 export const commandSchema = z.union([
+  action("confirm_card", {
+    id,
+    confirmed: z.literal(true),
+    expected: z
+      .object({
+        listingId: id,
+        printingId: id,
+        game: z.enum(games),
+        name: z.string().max(500),
+        set: z.string().max(500),
+        number: z.string().max(100).nullable(),
+        language: z.string().max(60),
+        condition: z.string().max(60),
+        finish: z.string().max(120),
+        kind: z.enum(["single", "sealed"]),
+        treatment: z.string().max(200),
+      })
+      .strict(),
+  }),
+  action("approve_price", {
+    id,
+    priceCrc: z.number().int().positive().max(2147483647),
+    expectedPriceCrc: z.number().int().positive().max(2147483647),
+    reason,
+  }),
+  action("set_price_fx", {
+    fx: z.number().min(1).max(10000),
+    observedAt: z.string().datetime(),
+    sourceUrl: url,
+  }),
   action("resolve_import", {
     id,
     language: z.enum(languages),

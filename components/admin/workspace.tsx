@@ -167,7 +167,7 @@ function TodayPanel({
       <Feedback {...counts} />
       <div className="stats">
         {Object.entries({
-          identity: ["Identidades pendientes", "revisiones"],
+          identity: ["Cartas por confirmar", "revisiones"],
           proposals: ["Precios pendientes", "precios"],
           imports: ["Filas por revisar", "importaciones"],
           requests: ["Solicitudes abiertas", "solicitudes"],

@@ -10,7 +10,10 @@ Haz esta parte antes del recorrido. Necesitas acceso al proyecto de Supabase y a
 2. Ejecuta `supabase/operations_preflight.sql` en el SQL Editor. Compara los listados publicados con el stock real. La producción consultada tenía 289 listados y el campo `available` era booleano; ese campo no acredita cuántas copias hay. Si hay listados sin lotes, prepara su recepción o conteo físico.
 3. En un proyecto existente, ejecuta **solo** `supabase/migrations/202610040001_operations.sql`. No vuelvas a ejecutar el seed de inventario. La migración es transaccional: un error cancela la actualización completa. No reemplaza la vista `public_listings`, los precios aprobados ni los campos de vitrina existentes. Crea `storefront_inventory` para cantidades reales, descontando reservas y cuarentena. Los productos sin stock real dejan de aparecer en esa vista.
 
+   Después aplica, en orden, `202610070001_price_verification.sql` y `202610080001_price_workflow.sql` si todavía no están instaladas. Añaden consultas verificables, diagnóstico de propuestas, confirmación de carta y edición auditada del precio final. Conservan los precios, stock, costos y propuestas existentes; no convierten propuestas antiguas en referencias vigentes.
+
    Usa la versión actual del archivo: conserva `market_prices.source_url` si esa columna ya existe en producción. Para que Codex ejecute el SQL mediante la API de gestión, configura `SUPABASE_ACCESS_TOKEN` como secreto dirigido a `api.supabase.com` en el entorno cloud. Se trata de un token personal de Supabase con acceso al proyecto; `SUPABASE_SERVICE_ROLE_KEY` no permite ejecutar migraciones SQL. Como alternativa, ejecuta el preflight y la migración en el SQL Editor del proyecto.
+
 4. Los propietarios originales que ya tenían cuenta quedan registrados en `admin_memberships`. Para otro propietario, primero crea su cuenta de correo/contraseña en Supabase Auth y luego ejecuta en el SQL Editor, reemplazando el correo:
 
    ```sql
@@ -32,14 +35,14 @@ La migración retira lectura pública de tablas privadas y mutaciones directas d
 
 ## 2. Recorrido de una hora
 
-| Minutos | Pantalla                | Ejercicio y resultado esperado                                                                                                                                  |
-| ------- | ----------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 0–10    | Hoy / Ajustes           | Revisar pendientes, confirmar rol, crear ubicación y registrar tipo de cambio real con fecha y fuente.                                                          |
-| 10–25   | Importaciones           | Cargar el CSV de ejemplo, previsualizar, corregir columnas y guardar un lote. Confirmar idioma, número, condición y acabado en una fila.                        |
-| 25–35   | Inventario / Revisiones | Incorporar la recepción en la ubicación correcta; comprobar stock físico/disponible. Trasladar una copia y ver el movimiento. Verificar o completar costo.      |
-| 35–45   | Precios                 | Seleccionar una variante, guardar evidencia comparable y calcular propuesta. Revisar precio actual/sugerido, mínimo, cambio y advertencias; aprobar con motivo. |
-| 45–55   | Tienda / Solicitudes    | Publicar la carta, enviar una consulta por WhatsApp con número de referencia, reservar, registrar venta y marcar entrega. Comprobar stock descontado.           |
-| 55–60   | Hoy                     | Revisar actividad, cola y pendientes. Exportar los resultados filtrados y acordar quién revisa cada excepción.                                                  |
+| Minutos | Pantalla                | Ejercicio y resultado esperado                                                                                                                             |
+| ------- | ----------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 0–10    | Hoy / Ajustes           | Revisar pendientes, confirmar rol, crear ubicación y registrar tipo de cambio real con fecha y fuente.                                                     |
+| 10–25   | Importaciones           | Cargar el CSV de ejemplo, previsualizar, corregir columnas y guardar un lote. Confirmar idioma, número, condición y acabado en una fila.                   |
+| 25–35   | Inventario / Revisiones | Incorporar la recepción en la ubicación correcta; comprobar stock físico/disponible. Trasladar una copia y ver el movimiento. Verificar o completar costo. |
+| 35–45   | Precios                 | Elegir una carta, confirmar datos físicos, consultar mercado y calcular. Editar el precio final, revisar mínimo/advertencias y guardar con motivo.         |
+| 45–55   | Tienda / Solicitudes    | Publicar la carta, enviar una consulta por WhatsApp con número de referencia, reservar, registrar venta y marcar entrega. Comprobar stock descontado.      |
+| 55–60   | Hoy                     | Revisar actividad, cola y pendientes. Exportar los resultados filtrados y acordar quién revisa cada excepción.                                             |
 
 Usa un proyecto de ensayo para el ejercicio completo de venta. En producción registra ventas solamente después de confirmar el pago real.
 
@@ -74,9 +77,16 @@ Las filas inválidas permanecen visibles: omítelas o corrige el archivo y guard
 
 ## 4. Calcular y revisar precios
 
-En **Precios → Consultar una carta**, busca la variante y pulsa **Consultar precio de mercado**. Verás el precio encontrado y una indicación del siguiente paso. **Ver precios y fuentes** abre el mercado, servicio consultado, moneda, fecha y advertencias. Si la identidad está pendiente, el enlace abre la ficha de esa carta en Inventario.
+En **Precios → Actualizar una carta**, sigue estos pasos:
 
-Después de confirmar la identidad física, pulsa **Continuar con este precio**, confirma la variante y **Calcular precio en colones**. El importe y la fecha originales se conservan automáticamente. La página pasa a **Aprobar precios**: marca la propuesta para abrir su cálculo y advertencias, elige **Aprobar y actualizar el precio**, escribe el motivo y pulsa **Guardar decisión**. Consultar y calcular conservan el precio actual; aprobar actualiza la tienda. **Consultas anteriores** permite revisar resultados y volver a consultar una carta. Consulta [VERIFICACION_PRECIOS.md](VERIFICACION_PRECIOS.md) para cobertura y límites.
+1. **Elegir carta:** busca y selecciona la variante. Verás su precio actual en la tienda.
+2. **Confirmar datos:** «Carta por confirmar» significa que falta registrar la comparación de la carta física con la ficha; no significa agotada ni que su precio venció. Compara nombre, set, número, idioma, condición y acabado, marca la confirmación y pulsa **Confirmar datos y consultar precio**. Si falta un dato o no coincide, abre **Completar ficha en Inventario**. Confirmar conserva precio, stock y costo.
+3. **Consultar mercado:** consulta un precio vigente y pulsa **Preparar precio en colones**. Revisa la referencia de la variante y pulsa **Calcular precio en colones**. **Ver precios y fuentes** muestra mercado, servicio, fecha y límites. Si falta un cambio USD/CRC vigente, el propietario puede registrarlo aquí con tasa real, fecha de publicación y enlace de la fuente; el formulario no cambia comisiones ni margen.
+4. **Guardar precio:** el cálculo abre el precio final en la misma carta. Puedes editarlo en colones, revisar el mínimo, advertencias y la vista previa del cambio, escribir el motivo y pulsar **Guardar precio en la tienda**. Este botón es la aprobación final. Consultar y calcular conservan el precio de la tienda; guardar lo actualiza.
+
+**Cambios pendientes** separa **Listos para guardar** de **Necesitan actualizarse**, con diez cartas por página. Cada carta muestra el motivo del bloqueo y el siguiente paso. Las propuestas antiguas sin evidencia, referencias vencidas o cálculos con datos/reglas anteriores necesitan **Consultar un precio actualizado**; la consulta abre esa misma carta y el nuevo cálculo reemplaza su propuesta pendiente anterior. No debes aprobarla por su antigüedad ni cambiar una fecha para hacerla vigente. Una referencia que vence durante la revisión bloquea el guardado y ofrece volver a consultar. **Descartar este cambio** conserva el precio de la tienda.
+
+**Consultas anteriores** permite revisar resultados y volver a consultar una carta. Consulta [VERIFICACION_PRECIOS.md](VERIFICACION_PRECIOS.md) para cobertura y límites.
 
 Para evidencia manual, agrega precio, moneda, proveedor, enlace HTTPS, fecha y tipo de evidencia. Confirma idioma, condición y acabado con la carta física. Un precio anunciado y una venta comparable se registran como evidencias distintas. Una fecha de consulta no demuestra cuándo se actualizó un precio.
 
@@ -94,7 +104,7 @@ Los costos por lote se conservan. La referencia de costo de la variante es el pr
 
 Las copias adicionales de un ajuste o snapshot no heredan un costo supuesto: confirma su costo de lote. La recepción CSV utiliza el costo explícito de cada fila; vacío permanece pendiente. Un traslado conserva costo y fecha de recepción del lote.
 
-Una aprobación se detiene si cambió precio, costo, variante, política o vigencia de evidencia. Cambiar el tipo de cambio también invalida propuestas: genera una nueva. Una propuesta nueva reemplaza las pendientes anteriores de esa variante. La revisión en lote es transaccional: si una fila no se puede aprobar, ninguna del lote se aprueba.
+Un guardado se detiene si cambió precio, costo, variante, política o vigencia de evidencia. Cambiar el tipo de cambio también invalida propuestas: calcula una nueva. Una propuesta nueva reemplaza las pendientes anteriores de esa variante. La edición del precio final se registra con precio calculado, importe elegido, motivo, usuario y fecha, sin modificar la referencia original. El servidor también exige el mínimo de costo y margen al guardar; no basta con cambiar el campo del navegador.
 
 Puedes bloquear temporalmente un precio en Inventario con un motivo. El bloqueo evita nuevas propuestas/aprobaciones hasta su vencimiento o liberación. Confirmar impuestos, costos reales y tratamiento de comisiones corresponde a la política de negocio; el cálculo presentado es antes de impuestos.
 

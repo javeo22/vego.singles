@@ -98,10 +98,12 @@ export function Pager({
   page,
   total,
   onPage,
+  pageSize = 50,
 }: {
   page: number;
   total: number;
   onPage: (n: number) => void;
+  pageSize?: number;
 }) {
   return (
     <div className="ops-pager">
@@ -117,7 +119,7 @@ export function Pager({
       </button>
       <button
         className="button secondary"
-        disabled={(page + 1) * 50 >= total}
+        disabled={(page + 1) * pageSize >= total}
         onClick={() => onPage(page + 1)}
       >
         Siguiente
@@ -182,6 +184,9 @@ export function ActionForm({
   children,
   label = "Guardar",
   disabled = false,
+  onResult,
+  onError,
+  submitDisabled = false,
 }: {
   action: string;
   payload: (d: FormData) => unknown;
@@ -189,6 +194,9 @@ export function ActionForm({
   children: ReactNode;
   label?: string;
   disabled?: boolean;
+  onResult?: (result: any) => void;
+  onError?: (message: string) => void;
+  submitDisabled?: boolean;
 }) {
   const [busy, setBusy] = useState(false),
     [error, setError] = useState("");
@@ -210,9 +218,12 @@ export function ActionForm({
             intent.current = { json, key: crypto.randomUUID() };
           const d = await post(action, p, intent.current!.key);
           intent.current = null;
+          onResult?.(d);
           onDone(d.message || "Guardado");
         } catch (e) {
-          setError(e instanceof Error ? e.message : "No se pudo guardar");
+          const message = e instanceof Error ? e.message : "No se pudo guardar";
+          setError(message);
+          onError?.(message);
         } finally {
           active.current = false;
           setBusy(false);
@@ -225,7 +236,7 @@ export function ActionForm({
           {error}
         </p>
       )}
-      <button className="button" disabled={busy || disabled}>
+      <button className="button" disabled={busy || disabled || submitDisabled}>
         {busy ? "Guardando…" : label}
       </button>
     </form>

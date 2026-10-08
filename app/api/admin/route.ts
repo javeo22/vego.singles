@@ -65,6 +65,18 @@ export async function GET(request: Request) {
       if (error) databaseError(error);
       return NextResponse.json({ ...data, currentEmail: user.email });
     }
+    if (type === "price_updates") {
+      const proposalId = p.get("proposalId");
+      if (proposalId) z.string().uuid().parse(proposalId);
+      const { data, error } = await db.rpc("list_price_updates", {
+        p_status: p.get("status") || "pending",
+        p_group: p.get("group") || "all",
+        p_page: page,
+        p_proposal: proposalId,
+      });
+      if (error) databaseError(error);
+      return NextResponse.json({ ...data, role });
+    }
     if (type === "counts") {
       const { data, error } = await db.rpc("operation_counts");
       if (error) databaseError(error);
@@ -170,6 +182,47 @@ export async function POST(request: Request) {
       key = input.key;
     } else {
       const input = commandSchema.parse(raw);
+      if (
+        input.action === "confirm_card" ||
+        input.action === "approve_price" ||
+        input.action === "set_price_fx"
+      ) {
+        const operation =
+          input.action === "confirm_card"
+            ? {
+                name: "confirm_pricing_card",
+                payload: {
+                  p_listing: input.payload.id,
+                  p_expected: input.payload.expected,
+                  p_key: input.key,
+                  p_confirmed: input.payload.confirmed,
+                },
+              }
+            : input.action === "approve_price"
+              ? {
+                  name: "approve_price_update",
+                  payload: {
+                    p_proposal: input.payload.id,
+                    p_price: input.payload.priceCrc,
+                    p_expected_price: input.payload.expectedPriceCrc,
+                    p_reason: input.payload.reason,
+                    p_key: input.key,
+                  },
+                }
+              : {
+                  name: "set_pricing_exchange",
+                  payload: {
+                    p_fx: input.payload.fx,
+                    p_at: input.payload.observedAt,
+                    p_source: input.payload.sourceUrl,
+                    p_key: input.key,
+                  },
+                };
+        const { data, error } = await db.rpc(operation.name, operation.payload);
+        if (error) databaseError(error);
+        revalidatePath("/");
+        return NextResponse.json(data);
+      }
       if (input.action === "evidence" && input.payload.priceCheckId) {
         const p = input.payload;
         const saved = await db

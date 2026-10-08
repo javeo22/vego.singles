@@ -1,6 +1,11 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
 import { variantLabel } from "@/lib/catalog";
+import {
+  pricingCardSnapshot,
+  pricingExchangeReady,
+  missingPricingCardFields,
+} from "@/lib/operations/price-workflow";
 import type { InventoryRecord, OperationRole } from "@/lib/operations/types";
 import type {
   MarketReference,
@@ -13,7 +18,8 @@ import {
   priceDate,
   referencePrice,
 } from "./price-check";
-import { PriceReviewPanel } from "./price-review";
+import { PriceReviewPanel, PriceUpdateEditor } from "./price-review";
+import { PriceExchange } from "./price-exchange";
 import {
   ActionForm,
   Feedback,
@@ -41,25 +47,46 @@ export function PricesPanel({
     [selected, setSelected] = useState<InventoryRecord | null>(null),
     [choice, setChoice] = useState<Choice | null>(null),
     [manual, setManual] = useState(false),
+    [manualCurrency, setManualCurrency] = useState("USD"),
+    [proposalId, setProposalId] = useState<string | null>(null),
+    [autoCheck, setAutoCheck] = useState(false),
+    [selection, setSelection] = useState(0),
+    [exchangeRequest, setExchangeRequest] = useState(0),
     [picking, setPicking] = useState(true),
     [error, setError] = useState("");
   const calculation = useRef<HTMLHeadingElement>(null);
   const cardRequest = useRef(0);
+  const settings = useData<List>("type=settings", revision);
+  const exchange = settings.data?.rows[0];
+  const exchangeReady = pricingExchangeReady(exchange);
+  const missingFields = selected ? missingPricingCardFields(selected) : [];
   const canEdit = role !== "stock";
   const locked =
     !!selected?.price_locked_until &&
     Date.parse(selected.price_locked_until) > Date.now();
-  const step = view === "review" ? 3 : !selected ? 0 : choice || manual ? 2 : 1;
-  function choose(card: InventoryRecord) {
+  const step =
+    view === "review"
+      ? 3
+      : !selected
+        ? 0
+        : !selected.identity_verified
+          ? 1
+          : proposalId || choice || manual
+            ? 3
+            : 2;
+  function choose(card: InventoryRecord, automatic = false) {
     cardRequest.current += 1;
     setSelected(card);
     setChoice(null);
+    setProposalId(null);
+    setAutoCheck(automatic);
+    setSelection((n) => n + 1);
     setManual(false);
     setPicking(false);
     setError("");
     setView("check");
   }
-  async function loadCard(id: string, signal?: AbortSignal) {
+  async function loadCard(id: string, signal?: AbortSignal, automatic = false) {
     const attempt = ++cardRequest.current;
     try {
       const response = await fetch(
@@ -71,7 +98,7 @@ export function PricesPanel({
         throw new Error(data.error || "No se pudo cargar la carta");
       const card = data.rows?.find((r: InventoryRecord) => r.listing_id === id);
       if (!card) throw new Error("No se encontró la carta. Búscala de nuevo.");
-      if (attempt === cardRequest.current) choose(card);
+      if (attempt === cardRequest.current) choose(card, automatic);
     } catch (e) {
       if (attempt === cardRequest.current && (e as Error).name !== "AbortError")
         setError(e instanceof Error ? e.message : "No se pudo cargar la carta");
@@ -91,21 +118,36 @@ export function PricesPanel({
   function calculated() {
     setChoice(null);
     setManual(false);
-    setView("review");
     onDone(
-      "Precio calculado. Revisa la propuesta y apruébala para actualizar el precio de la tienda.",
+      "Cálculo listo. Revisa o edita el precio final y guárdalo para actualizar la tienda.",
     );
+  }
+  function checkAnother(id?: string) {
+    if (id) void loadCard(id, undefined, true);
+    else {
+      setSelected(null);
+      setChoice(null);
+      setProposalId(null);
+      setManual(false);
+      setPicking(true);
+      setView("check");
+      cardRequest.current += 1;
+    }
+  }
+  function configureExchange() {
+    setExchangeRequest((n) => n + 1);
   }
   return (
     <div className="price-workspace">
       <p className="price-intro">
-        Consulta el mercado, calcula en colones y aprueba el cambio.
+        Elige una carta, comprueba sus datos y decide su precio final. Guardar
+        actualiza la tienda.
       </p>
       <nav className="price-tasks" aria-label="Tareas de precios">
         {(
           [
-            ["check", "Consultar una carta"],
-            ["review", "Aprobar precios"],
+            ["check", "Actualizar una carta"],
+            ["review", "Cambios pendientes"],
             ["history", "Consultas anteriores"],
           ] as const
         ).map(([key, label]) => (
@@ -124,13 +166,13 @@ export function PricesPanel({
           {error}
         </p>
       )}
-      {view !== "history" && (
+      {view === "check" && (
         <ol className="price-steps" aria-label="Pasos para cambiar un precio">
           {[
             "Elegir carta",
+            "Confirmar datos",
             "Consultar mercado",
-            "Calcular en colones",
-            "Aprobar cambio",
+            "Guardar precio",
           ].map((label, index) => (
             <li
               key={label}
@@ -142,6 +184,23 @@ export function PricesPanel({
             </li>
           ))}
         </ol>
+      )}
+      {(selected || view === "review") && (
+        <>
+          <Feedback error={settings.error} loading={settings.loading} />
+          {exchange && (
+            <PriceExchange
+              settings={exchange}
+              role={role}
+              onDone={onDone}
+              openRequest={exchangeRequest}
+              required={
+                (!!choice && choice.reference.currency === "USD") ||
+                (manual && manualCurrency === "USD")
+              }
+            />
+          )}
+        </>
       )}
       {view === "check" && (
         <section className="ops-panel price-card-flow">
@@ -159,7 +218,7 @@ export function PricesPanel({
           {(!selected || picking) && (
             <ListingPicker
               revision={revision}
-              onSelect={choose}
+              onSelect={(card) => choose(card)}
               label="Buscar por nombre, set o número"
             />
           )}
@@ -173,13 +232,22 @@ export function PricesPanel({
             <>
               <div className="price-selected-card">
                 {selected.stock_image_url && (
-                  <img src={selected.stock_image_url} alt="" />
+                  <img
+                    src={selected.stock_image_url}
+                    alt=""
+                    onError={(e) => {
+                      e.currentTarget.hidden = true;
+                    }}
+                  />
                 )}
                 <div>
                   <h3>{selected.canonical_name}</h3>
                   <p>
                     {selected.set_name} · {selected.collector_number}
                   </p>
+                  {selected.treatment && selected.treatment !== "standard" && (
+                    <p>Edición / tratamiento: {selected.treatment}</p>
+                  )}
                   <p>
                     {variantLabel(selected.language)} ·{" "}
                     {variantLabel(selected.condition)} ·{" "}
@@ -199,17 +267,59 @@ export function PricesPanel({
               )}
               {!selected.identity_verified && (
                 <div className="price-blocker">
-                  <strong>Esta carta todavía necesita confirmación.</strong>
+                  <h2>2. Confirma los datos de esta carta</h2>
                   <p>
-                    Puedes consultar precios. Antes de calcular, confirma la
-                    carta física en Inventario.
+                    «Carta por confirmar» significa que falta registrar la
+                    comparación de la carta física con esta ficha.
                   </p>
+                  {canEdit && (
+                    <ActionForm
+                      action="confirm_card"
+                      label="Confirmar datos y consultar precio"
+                      submitDisabled={missingFields.length > 0}
+                      onDone={(m) => {
+                        onDone(m);
+                        void loadCard(selected.listing_id, undefined, true);
+                      }}
+                      payload={(d) => ({
+                        id: selected.listing_id,
+                        expected: pricingCardSnapshot(selected),
+                        confirmed: d.get("confirmed") === "on",
+                      })}
+                    >
+                      <label className="ops-check">
+                        <input type="checkbox" name="confirmed" required />
+                        Comparé la carta física: nombre, set, número, idioma,
+                        condición y acabado coinciden con esta ficha.
+                      </label>
+                      <p className="small-note">
+                        Confirma solo si los datos coinciden. Esta acción no
+                        cambia el precio, las existencias ni el costo.
+                      </p>
+                    </ActionForm>
+                  )}
+                  {missingFields.length > 0 && (
+                    <p role="alert">
+                      Faltan datos: {missingFields.join(", ")}. Complétalos en
+                      Inventario antes de confirmar esta carta.
+                    </p>
+                  )}
                   <a
                     href={`/admin/inventario?listing=${encodeURIComponent(selected.listing_id)}`}
                   >
-                    Confirmar esta carta en Inventario →
+                    Los datos no coinciden: corregir ficha en Inventario →
                   </a>
                 </div>
+              )}
+              {selected.identity_verified && (
+                <p className="price-card-confirmed">
+                  ✓ Datos de la carta confirmados.{" "}
+                  <a
+                    href={`/admin/inventario?listing=${encodeURIComponent(selected.listing_id)}`}
+                  >
+                    Corregir ficha
+                  </a>
+                </p>
               )}
               {locked && (
                 <div className="price-blocker">
@@ -228,44 +338,51 @@ export function PricesPanel({
                   </a>
                 </div>
               )}
-              {!choice && !manual && (
-                <div className="price-flow-stage">
-                  <h2>2. Consulta el precio de mercado</h2>
-                  <p>
-                    Comparamos la misma impresión y acabado. Consultar no cambia
-                    el precio de la tienda.
-                  </p>
-                  <PriceCheckPanel
-                    key={`${selected.listing_id}:${selected.identity_verified}:${selected.condition}:${selected.finish}`}
-                    listing={selected}
-                    disabled={!canEdit}
-                    allowUse={canEdit && selected.identity_verified && !locked}
-                    onUse={(reference, report) => {
-                      if (canEdit && selected.identity_verified && !locked)
-                        setChoice({ reference, report });
-                    }}
-                  />
-                  {canEdit && selected.identity_verified && !locked && (
-                    <button
-                      className="price-text-action"
-                      onClick={() => {
-                        setChoice(null);
-                        setManual(true);
+              {selected.identity_verified &&
+                !choice &&
+                !manual &&
+                !proposalId && (
+                  <div className="price-flow-stage">
+                    <h2>3. Consulta el precio de mercado</h2>
+                    <p>
+                      Comparamos la misma impresión y acabado. Consultar no
+                      cambia el precio de la tienda.
+                    </p>
+                    <PriceCheckPanel
+                      key={`${selected.listing_id}:${selection}`}
+                      listing={selected}
+                      disabled={!canEdit}
+                      allowUse={
+                        canEdit && selected.identity_verified && !locked
+                      }
+                      autoCheck={autoCheck}
+                      onUse={(reference, report) => {
+                        if (canEdit && selected.identity_verified && !locked)
+                          setChoice({ reference, report });
                       }}
-                    >
-                      Ingresar un precio manual
-                    </button>
-                  )}
-                </div>
-              )}
-              {(choice || manual) && (
+                    />
+                    {canEdit && selected.identity_verified && !locked && (
+                      <button
+                        className="price-text-action"
+                        onClick={() => {
+                          setChoice(null);
+                          setManual(true);
+                        }}
+                      >
+                        Ingresar un precio manual
+                      </button>
+                    )}
+                  </div>
+                )}
+              {(choice || manual) && !proposalId && (
                 <div className="price-flow-stage">
                   <h2 ref={calculation} tabIndex={-1}>
-                    3. Calcula el precio en colones
+                    Prepara el precio en colones
                   </h2>
                   <p>
                     Se aplican el cambio USD/CRC y tu política de costos y
-                    margen. El resultado queda pendiente de aprobación.
+                    margen. Después podrás editar el precio final antes de
+                    guardarlo.
                   </p>
                   {choice && (
                     <div className="price-chosen-reference">
@@ -279,7 +396,10 @@ export function PricesPanel({
                       </div>
                       <button
                         className="button secondary"
-                        onClick={() => setChoice(null)}
+                        onClick={() => {
+                          setChoice(null);
+                          setAutoCheck(true);
+                        }}
                       >
                         Volver a consultar
                       </button>
@@ -300,8 +420,13 @@ export function PricesPanel({
                     key={`${selected.listing_id}:${choice?.report.jobId || "manual"}`}
                     action="evidence"
                     disabled={!canEdit || !selected.identity_verified || locked}
+                    submitDisabled={
+                      (choice?.reference.currency || manualCurrency) ===
+                        "USD" && !exchangeReady
+                    }
                     label="Calcular precio en colones"
                     onDone={calculated}
+                    onResult={(result) => setProposalId(result.id)}
                     payload={(data) =>
                       choice
                         ? {
@@ -340,10 +465,17 @@ export function PricesPanel({
                           step="0.01"
                           required
                         />
-                        <Field label="Moneda" name="currency" value="USD">
-                          <option>USD</option>
-                          <option>CRC</option>
-                        </Field>
+                        <label className="ops-field">
+                          Moneda
+                          <select
+                            name="currency"
+                            value={manualCurrency}
+                            onChange={(e) => setManualCurrency(e.target.value)}
+                          >
+                            <option>USD</option>
+                            <option>CRC</option>
+                          </select>
+                        </label>
                         <Field
                           label="Sitio donde viste el precio"
                           name="provider"
@@ -383,16 +515,45 @@ export function PricesPanel({
                     )}
                     <label className="ops-check">
                       <input type="checkbox" name="confirmed" required />
-                      Confirmé set, número, idioma, condición y acabado con la
-                      carta física.
+                      Revisé que esta referencia corresponde al set, número,
+                      idioma, condición y acabado de la carta seleccionada.
                     </label>
                     <p className="small-note">
-                      Si falta un cambio vigente, actualízalo en{" "}
-                      <a href="/admin/ajustes">Ajustes</a>. El cálculo no
-                      publica el nuevo precio.
+                      El cálculo prepara una propuesta. El precio actual de la
+                      tienda se conserva hasta que pulses Guardar precio en la
+                      tienda.
                     </p>
                   </ActionForm>
                 </div>
+              )}
+              {proposalId && (
+                <PriceUpdateEditor
+                  proposalId={proposalId}
+                  role={role}
+                  revision={revision}
+                  onDone={onDone}
+                  onCheck={checkAnother}
+                  onExchange={configureExchange}
+                  onSaved={(price) =>
+                    setSelected((card) =>
+                      card
+                        ? {
+                            ...card,
+                            approved_price_crc: price,
+                            price_verified: true,
+                          }
+                        : card,
+                    )
+                  }
+                />
+              )}
+              {proposalId && (
+                <button
+                  className="price-text-action"
+                  onClick={() => checkAnother()}
+                >
+                  Actualizar otra carta
+                </button>
               )}
             </>
           )}
@@ -403,7 +564,8 @@ export function PricesPanel({
           role={role}
           revision={revision}
           onDone={onDone}
-          onCheck={() => setView("check")}
+          onCheck={checkAnother}
+          onExchange={configureExchange}
         />
       )}
       {view === "history" && (
@@ -411,7 +573,7 @@ export function PricesPanel({
           role={role}
           revision={revision}
           onDone={onDone}
-          onSelect={(id) => void loadCard(id)}
+          onSelect={(id) => void loadCard(id, undefined, true)}
         />
       )}
     </div>

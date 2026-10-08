@@ -113,6 +113,53 @@ function priceReport(overrides: Partial<PriceCheck> = {}): PriceCheck {
     ...overrides,
   };
 }
+const exchangeFixture = {
+  fx: 510,
+  fx_at: new Date().toISOString(),
+  fx_source: "https://www.bccr.fi.cr/",
+};
+function updateFixture() {
+  return {
+    id: "00000000-0000-4000-8000-000000000040",
+    listing_id: id,
+    status: "pending",
+    current_price_crc: 1500,
+    suggested_price_crc: 10500,
+    created_at: new Date().toISOString(),
+    readiness: {
+      code: "ready",
+      canApprove: true,
+      message:
+        "Referencia vigente. Puedes editar el precio final y guardar el cambio.",
+      action: "edit",
+      expiresAt: new Date(Date.now() + 3600000).toISOString(),
+      minimumPriceCrc: 7500,
+      currentPriceCrc: 1500,
+      checkedAt: new Date().toISOString(),
+    },
+    calculation: {
+      marketTargetCrc: 10300,
+      floorCrc: 7500,
+      fx: 510,
+      fxAt: exchangeFixture.fx_at,
+      warnings: ["Costo por confirmar"],
+      priceCheck: {
+        reference: datedReference,
+        warnings: ["El feed no ofrece precios por condición"],
+      },
+    },
+    listings: {
+      condition: "Near Mint",
+      finish: "Holofoil",
+      card_printings: {
+        canonical_name: row.canonical_name,
+        set_name: row.set_name,
+        collector_number: row.collector_number,
+        language: "en",
+      },
+    },
+  };
+}
 function mock(handle: (url: URL, body: any) => Response) {
   globalThis.fetch = (async (url, options) =>
     handle(
@@ -278,68 +325,64 @@ test("import review preserves Japanese language and full collector number", asyn
   assert.equal(p.candidate.collectorNumber, "106/100");
   assert.equal(p.candidate.name, "Swinub");
 });
-test("price review submits selected proposals and exposes stale-review errors", async () => {
-  const proposal = "00000000-0000-4000-8000-000000000040";
+test("editing a final price exposes an expiry recovery action after a rejected save", async () => {
   const sent: any[] = [];
   mock((u, b) => {
     if (b) {
       sent.push(b);
       return json({ error: "Propuesta vencida: precio cambió" }, 409);
     }
-    if (u.searchParams.get("type") === "proposals")
+    if (u.searchParams.get("type") === "settings")
+      return json({ rows: [exchangeFixture] });
+    if (u.searchParams.get("type") === "price_updates") {
+      const proposal = updateFixture();
+      if (sent.length)
+        proposal.readiness = {
+          ...proposal.readiness,
+          canApprove: false,
+          code: "expired",
+          action: "refresh",
+          message:
+            "El precio de mercado venció. Consulta un precio actualizado.",
+        };
       return json({
-        rows: [
-          {
-            id: proposal,
-            listing_id: id,
-            status: "pending",
-            current_price_crc: 1500,
-            suggested_price_crc: 2000,
-            calculation: {
-              warnings: ["Costo por confirmar"],
-              priceCheck: {
-                reference: {
-                  marketplace: "tcgplayer",
-                  feed: "tcgcsv",
-                  amount: 20,
-                  timestampBasis: "feed_published",
-                  providerUpdatedAt: "2026-10-07T12:00:00Z",
-                },
-                warnings: ["El feed no ofrece precios por condición"],
-              },
-            },
-            listings: {
-              condition: "Near Mint",
-              finish: "Holofoil",
-              card_printings: {
-                canonical_name: "Swinub",
-                set_name: "Battle Partners",
-              },
-            },
-          },
-        ],
+        rows: [proposal],
         total: 1,
+        readyCount: sent.length ? 0 : 1,
+        blockedCount: sent.length ? 1 : 0,
       });
+    }
     return json({ rows: [], total: 0 });
   });
   render(<PricesPanel role="owner" revision={0} onDone={() => {}} />);
   const user = userEvent.setup({ document: dom.window.document });
-  await user.click(screen.getByRole("button", { name: "Aprobar precios" }));
+  await user.click(screen.getByRole("button", { name: "Cambios pendientes" }));
   await user.click(
-    await screen.findByRole("checkbox", {
-      name: "Seleccionar propuesta Swinub",
-    }),
+    await screen.findByRole("button", { name: "Revisar y editar precio" }),
   );
   assert.ok(screen.getByText("El feed no ofrece precios por condición"));
-  assert.ok(screen.getByText(/Archivo de precios publicado:/));
+  await user.clear(screen.getByLabelText("Precio final en colones"));
+  await user.type(screen.getByLabelText("Precio final en colones"), "9800");
   await user.type(
-    screen.getByLabelText("Motivo de revisión"),
+    screen.getByLabelText("Motivo del cambio"),
     "Cotización revisada",
   );
-  await user.click(screen.getByRole("button", { name: "Guardar decisión" }));
-  await screen.findByText("Propuesta vencida: precio cambió");
-  assert.equal(sent[0].action, "bulk_price");
-  assert.deepEqual(sent[0].payload.ids, [proposal]);
+  await user.click(
+    screen.getByRole("button", { name: "Guardar precio en la tienda" }),
+  );
+  await screen.findByText(
+    "El precio de mercado venció. Consulta un precio actualizado.",
+  );
+  assert.equal(sent[0].action, "approve_price");
+  assert.equal(sent[0].payload.priceCrc, 9800);
+  assert.equal(sent[0].payload.expectedPriceCrc, 10500);
+  await screen.findByRole("button", {
+    name: "Consultar un precio actualizado",
+  });
+  assert.equal(
+    screen.queryByRole("button", { name: "Guardar precio en la tienda" }),
+    null,
+  );
 });
 
 test("account settings require confirmation and clear password fields after changing them", async () => {
@@ -483,7 +526,7 @@ test("price checks keep retry keys and only fill evidence after the reviewer cho
   assert.equal(sent[0].key, sent[1].key);
   assert.equal(used.length, 0);
   await user.click(
-    screen.getByRole("button", { name: "Continuar con este precio" }),
+    screen.getByRole("button", { name: "Preparar precio en colones" }),
   );
   assert.equal(used[0].amount, 2);
   assert.equal(used[0].providerUpdatedAt, "2026-10-07T12:00:00Z");
@@ -548,7 +591,7 @@ test("price-check results expose an undated feed without offering it as verified
     screen.getByRole("heading", { name: "No hay un precio vigente para usar" }),
   );
   assert.equal(
-    screen.queryByRole("button", { name: "Continuar con este precio" }),
+    screen.queryByRole("button", { name: "Preparar precio en colones" }),
     null,
   );
 });
@@ -561,8 +604,12 @@ test("guided pricing preserves the saved reference and opens review without appr
     if (url.pathname === "/api/admin/price-check") return json({ report });
     if (body) {
       sent.push(body);
-      return json({ message: "Calculado" });
+      return json({ id: updateFixture().id, message: "Calculado" });
     }
+    if (url.searchParams.get("type") === "settings")
+      return json({ rows: [exchangeFixture] });
+    if (url.searchParams.get("type") === "price_updates")
+      return json({ rows: [updateFixture()], total: 1 });
     return url.searchParams.get("type") === "inventory"
       ? json({ rows: [{ ...row, language: "en" }], total: 1 })
       : json({ rows: [], total: 0 });
@@ -585,7 +632,7 @@ test("guided pricing preserves the saved reference and opens review without appr
     screen.getByRole("button", { name: "Consultar precio de mercado" }),
   );
   const next = await screen.findByRole("button", {
-    name: "Continuar con este precio",
+    name: "Preparar precio en colones",
   });
   assert.equal(sent.length, 0);
   const sources = screen
@@ -602,9 +649,12 @@ test("guided pricing preserves the saved reference and opens review without appr
     0,
     "Physical confirmation is required before calculating",
   );
-  await user.click(screen.getByRole("checkbox", { name: /Confirmé set/ }));
+  await user.click(
+    screen.getByRole("checkbox", { name: /Revisé que esta referencia/ }),
+  );
   await user.click(calculate);
-  await screen.findByRole("heading", { name: "Precios por aprobar" });
+  await screen.findByRole("heading", { name: "4. Define y guarda el precio" });
+  await screen.findByLabelText("Precio final en colones");
   assert.equal(sent.length, 1);
   assert.equal(sent[0].action, "evidence");
   assert.deepEqual(sent[0].payload, {
@@ -619,10 +669,10 @@ test("guided pricing preserves the saved reference and opens review without appr
     priceReferenceId: datedReference.id,
     exactVariant: true,
   });
-  assert.match(done[0], /apruébala para actualizar/);
+  assert.match(done[0], /edita el precio final/);
   assert.equal(
     screen
-      .getByRole("button", { name: "Aprobar precios" })
+      .getByRole("button", { name: "Actualizar una carta" })
       .getAttribute("aria-pressed"),
     "true",
   );
@@ -645,7 +695,7 @@ test("unconfirmed cards link directly to inventory and cannot use a market refer
     `/admin/inventario?listing=${id}`,
   );
   assert.equal(
-    screen.queryByRole("button", { name: "Continuar con este precio" }),
+    screen.queryByRole("button", { name: "Preparar precio en colones" }),
     null,
   );
 });
@@ -691,7 +741,7 @@ for (const scenario of [
     );
     assert.ok(screen.getByRole("heading", { name: scenario.title }));
     assert.equal(
-      screen.queryByRole("button", { name: "Continuar con este precio" }),
+      screen.queryByRole("button", { name: "Preparar precio en colones" }),
       null,
     );
     assert.ok(
@@ -723,6 +773,8 @@ test("history filters price jobs and requires a fresh consultation before calcul
   const requests: URL[] = [];
   mock((u) => {
     requests.push(u);
+    if (u.pathname === "/api/admin/price-check")
+      return json({ report: priceReport() });
     if (u.searchParams.get("type") === "jobs")
       return json({
         rows: [
@@ -753,15 +805,190 @@ test("history filters price jobs and requires a fresh consultation before calcul
     ),
   );
   assert.equal(
-    screen.queryByRole("button", { name: "Continuar con este precio" }),
+    screen.queryByRole("button", { name: "Preparar precio en colones" }),
     null,
   );
   await user.click(
     screen.getByRole("button", { name: "Consultar esta carta de nuevo" }),
   );
-  await screen.findByRole("button", { name: "Consultar precio de mercado" });
+  await screen.findByRole("button", { name: "Preparar precio en colones" });
+  assert.ok(requests.some((u) => u.pathname === "/api/admin/price-check"));
   assert.equal(
     screen.queryByRole("button", { name: "Calcular precio en colones" }),
     null,
   );
+});
+
+test("inline card confirmation requires physical comparison and continues with a fresh price check", async () => {
+  const sent: any[] = [];
+  let confirmed = false;
+  mock((url, b) => {
+    if (url.pathname === "/api/admin/price-check") {
+      assert.ok(confirmed);
+      return json({ report: priceReport() });
+    }
+    if (b) {
+      sent.push(b);
+      confirmed = true;
+      return json({ message: "Carta confirmada" });
+    }
+    if (url.searchParams.get("type") === "settings")
+      return json({ rows: [exchangeFixture] });
+    return json({
+      rows: [{ ...row, language: "en", identity_verified: confirmed }],
+      total: 1,
+    });
+  });
+  render(<PricesPanel role="owner" revision={0} onDone={() => {}} />);
+  const user = userEvent.setup({ document: dom.window.document });
+  await user.click(await screen.findByRole("button", { name: /^Swinub/ }));
+  assert.ok(
+    screen.getByRole("heading", {
+      name: "2. Confirma los datos de esta carta",
+    }),
+  );
+  assert.equal(
+    screen.queryByRole("button", { name: "Consultar precio de mercado" }),
+    null,
+  );
+  await user.click(
+    screen.getByRole("button", { name: "Confirmar datos y consultar precio" }),
+  );
+  assert.equal(sent.length, 0);
+  await user.click(
+    screen.getByRole("checkbox", { name: /Comparé la carta física/ }),
+  );
+  await user.click(
+    screen.getByRole("button", { name: "Confirmar datos y consultar precio" }),
+  );
+  await screen.findByRole("button", { name: "Preparar precio en colones" });
+  assert.equal(sent.length, 1);
+  assert.equal(sent[0].action, "confirm_card");
+  assert.equal(sent[0].payload.confirmed, true);
+  assert.equal(sent[0].payload.expected.printingId, row.card_printing_id);
+  assert.equal(sent[0].payload.expected.number, row.collector_number);
+  assert.equal(sent[0].payload.acquisitionCostCrc, undefined);
+});
+
+test("invalid final prices disable saving while leaving the input editable for correction", async () => {
+  mock((url) =>
+    url.searchParams.get("type") === "price_updates"
+      ? json({
+          rows: [updateFixture()],
+          total: 1,
+          readyCount: 1,
+          blockedCount: 0,
+        })
+      : json({ rows: [exchangeFixture] }),
+  );
+  render(<PricesPanel role="owner" revision={0} onDone={() => {}} />);
+  const user = userEvent.setup({ document: dom.window.document });
+  await user.click(screen.getByRole("button", { name: "Cambios pendientes" }));
+  await user.click(
+    await screen.findByRole("button", { name: "Revisar y editar precio" }),
+  );
+  const input = screen.getByLabelText(
+    "Precio final en colones",
+  ) as HTMLInputElement;
+  await user.clear(input);
+  assert.equal(input.disabled, false);
+  assert.equal(input.closest("fieldset")!.disabled, false);
+  assert.equal(
+    (
+      screen.getByRole("button", {
+        name: "Guardar precio en la tienda",
+      }) as HTMLButtonElement
+    ).disabled,
+    true,
+  );
+  await user.type(input, "7000");
+  assert.ok(screen.getByRole("alert"));
+  await user.clear(input);
+  await user.type(input, "9800");
+  assert.equal(input.value, "9800");
+  assert.equal(
+    (
+      screen.getByRole("button", {
+        name: "Guardar precio en la tienda",
+      }) as HTMLButtonElement
+    ).disabled,
+    false,
+  );
+});
+
+test("missing exchange does not lock manual fields or prevent a CRC-only calculation", async () => {
+  mock((url) =>
+    url.searchParams.get("type") === "settings"
+      ? json({ rows: [{ fx: null, fx_at: null, fx_source: null }] })
+      : json({ rows: [{ ...row, language: "en" }], total: 1 }),
+  );
+  render(<PricesPanel role="owner" revision={0} onDone={() => {}} />);
+  const user = userEvent.setup({ document: dom.window.document });
+  await user.click(await screen.findByRole("button", { name: /^Swinub/ }));
+  await user.click(
+    screen.getByRole("button", { name: "Ingresar un precio manual" }),
+  );
+  const calculate = screen.getByRole("button", {
+    name: "Calcular precio en colones",
+  }) as HTMLButtonElement;
+  assert.equal(calculate.disabled, true);
+  assert.equal(
+    (screen.getByLabelText("Moneda") as HTMLSelectElement).disabled,
+    false,
+  );
+  await user.selectOptions(screen.getByLabelText("Moneda"), "CRC");
+  assert.equal(calculate.disabled, false);
+});
+
+test("expired proposals have a targeted recovery action instead of an approval form", async () => {
+  const p = updateFixture();
+  p.readiness = {
+    ...p.readiness,
+    canApprove: false,
+    code: "expired",
+    action: "refresh",
+    message: "La referencia venció. Consulta un precio actualizado.",
+  };
+  const sent: any[] = [];
+  mock((url, b) => {
+    if (b) {
+      sent.push(b);
+      return json({ report: priceReport() });
+    }
+    if (url.searchParams.get("type") === "price_updates")
+      return json({
+        rows: url.searchParams.get("group") === "blocked" ? [p] : [],
+        total: url.searchParams.get("group") === "blocked" ? 1 : 0,
+        readyCount: 0,
+        blockedCount: 1,
+      });
+    if (url.searchParams.get("type") === "settings")
+      return json({ rows: [exchangeFixture] });
+    return json({
+      rows: [{ ...row, language: "en", identity_verified: false }],
+      total: 1,
+    });
+  });
+  render(<PricesPanel role="owner" revision={0} onDone={() => {}} />);
+  const user = userEvent.setup({ document: dom.window.document });
+  await user.click(screen.getByRole("button", { name: "Cambios pendientes" }));
+  await screen.findByRole("heading", {
+    name: "Todavía no hay precios listos para guardar",
+  });
+  await user.click(
+    screen.getByRole("button", { name: /Necesitan actualizarse/ }),
+  );
+  await user.click(
+    await screen.findByRole("button", {
+      name: "Consultar un precio actualizado",
+    }),
+  );
+  await screen.findByRole("heading", {
+    name: "2. Confirma los datos de esta carta",
+  });
+  assert.equal(
+    screen.queryByRole("button", { name: "Guardar precio en la tienda" }),
+    null,
+  );
+  assert.equal(sent.length, 0);
 });

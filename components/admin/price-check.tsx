@@ -1,5 +1,5 @@
 "use client";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { variantLabel } from "@/lib/catalog";
 import type { InventoryRecord } from "@/lib/operations/types";
 import type {
@@ -167,7 +167,7 @@ export function PriceCheckResults({
             className="button"
             onClick={() => onUse(recommended, report)}
           >
-            Continuar con este precio
+            Preparar precio en colones
           </button>
         )}
         {onManual && !next.inventory && (
@@ -276,18 +276,27 @@ export function PriceCheckPanel({
   onUse,
   onManual,
   allowUse = true,
+  autoCheck = false,
 }: {
   listing: InventoryRecord;
   disabled?: boolean;
   onUse: (r: MarketReference, report: PriceCheck) => void;
   onManual?: () => void;
   allowUse?: boolean;
+  autoCheck?: boolean;
 }) {
   const [report, setReport] = useState<PriceCheck | null>(null),
     [error, setError] = useState(""),
     [pending, setPending] = useState(false);
   const busy = useRef(false),
     key = useRef<string | null>(null);
+  const started = useRef(false);
+  useEffect(() => {
+    if (autoCheck && !disabled && !started.current) {
+      started.current = true;
+      void check();
+    }
+  }, [autoCheck, disabled]);
   async function check() {
     if (busy.current) return;
     busy.current = true;

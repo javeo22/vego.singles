@@ -90,7 +90,7 @@ export function InventoryPanel({
             <option value="all">Todos</option>
             <option value="published">Publicado</option>
             <option value="draft">Borrador</option>
-            <option value="unverified">Identidad pendiente</option>
+            <option value="unverified">Carta por confirmar</option>
           </select>
         </label>
         <label className="ops-field">
@@ -110,6 +110,7 @@ export function InventoryPanel({
         <CsvExport query={filters} disabled={r.loading} />
       </div>
       <Feedback {...r} />
+      <p className="small-note">«Carta por confirmar» indica que falta comparar la carta física con su ficha: set, número, idioma y acabado. <a href="/admin/precios">Confirmar una carta y actualizar su precio →</a></p>
       {linkError && (
         <p role="alert" className="ops-error">
           {linkError}
@@ -150,7 +151,7 @@ export function InventoryPanel({
                 <td>{money(l.approved_price_crc)}</td>
                 <td>
                   {!l.identity_verified
-                    ? "Identidad pendiente"
+                    ? "Carta por confirmar"
                     : !l.price_verified
                       ? "Precio pendiente"
                       : "Verificada"}
@@ -229,7 +230,7 @@ function InventoryDetail({
       <div className="ops-detail-grid">
         {role !== "stock" && (
           <div>
-            <h3>Identidad y costo</h3>
+            <h3>Datos de la carta y costo</h3>
             <ActionForm
               action="verify_listing"
               onDone={onDone}
