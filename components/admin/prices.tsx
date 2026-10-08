@@ -233,10 +233,11 @@ export function PricesPanel({
               <div className="price-selected-card">
                 {selected.stock_image_url && (
                   <img
+                    key={selected.stock_image_url}
                     src={selected.stock_image_url}
                     alt=""
                     onError={(e) => {
-                      e.currentTarget.hidden = true;
+                      e.currentTarget.style.display = "none";
                     }}
                   />
                 )}

@@ -274,7 +274,16 @@ export function ListingPicker({
             className="ops-pick"
             onClick={() => onSelect(l)}
           >
-            {l.stock_image_url && <img src={l.stock_image_url} alt="" />}
+            {l.stock_image_url && (
+              <img
+                key={l.stock_image_url}
+                src={l.stock_image_url}
+                alt=""
+                onError={(e) => {
+                  e.currentTarget.style.display = "none";
+                }}
+              />
+            )}
             <span>
               <strong>{l.canonical_name}</strong>
               <small>
