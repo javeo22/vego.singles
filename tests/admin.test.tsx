@@ -1,6 +1,10 @@
 import { JSDOM } from "jsdom";
 import { test, afterEach } from "node:test";
 import assert from "node:assert/strict";
+import type {
+  MarketReference,
+  PriceCheck,
+} from "../lib/operations/price-verification";
 const dom = new JSDOM("<!doctype html><html><body></body></html>", {
   url: "https://example.com/admin",
 });
@@ -33,6 +37,7 @@ const originalFetch = globalThis.fetch;
 afterEach(() => {
   cleanup();
   globalThis.fetch = originalFetch;
+  dom.window.history.replaceState({}, "", "/admin");
 });
 const id = "00000000-0000-4000-8000-000000000021";
 const row = {
@@ -59,6 +64,55 @@ const json = (data: unknown, status = 200) =>
     status,
     headers: { "Content-Type": "application/json" },
   });
+const datedReference: MarketReference = {
+  id: "tcgcsv:123:Holofoil:USD",
+  amount: 20.19,
+  currency: "USD",
+  marketplace: "tcgplayer",
+  feed: "tcgcsv",
+  sourceUrl: "https://www.tcgplayer.com/product/123",
+  providerUpdatedAt: "2026-10-07T12:34:56.789Z",
+  timestampBasis: "feed_published",
+  checkedAt: "2026-10-07T13:00:00Z",
+  productId: "123",
+  finish: "Holofoil",
+  conditionCoverage: "market_aggregate",
+  freshness: "fresh",
+};
+function priceReport(overrides: Partial<PriceCheck> = {}): PriceCheck {
+  return {
+    version: 1,
+    jobId: "00000000-0000-4000-8000-000000000041",
+    checkedAt: "2026-10-07T13:00:00Z",
+    fingerprint: "fixture",
+    variantSnapshot: {
+      listingId: id,
+      printingId: row.card_printing_id,
+      game: row.game,
+      name: row.canonical_name,
+      set: row.set_name,
+      number: row.collector_number,
+      language: "en",
+      condition: row.condition,
+      finish: row.finish,
+      treatment: "standard",
+      kind: "single",
+      provider: "pokemontcg",
+      externalId: "fixture",
+      tcgplayerId: "123",
+      identityVerified: true,
+    },
+    status: "reference_available",
+    references: [datedReference],
+    failures: [],
+    warnings: [],
+    independentMarkets: 1,
+    recommendedId: datedReference.id,
+    maxAgeHours: 72,
+    manualReviewRequired: true,
+    ...overrides,
+  };
+}
 function mock(handle: (url: URL, body: any) => Response) {
   globalThis.fetch = (async (url, options) =>
     handle(
@@ -270,20 +324,19 @@ test("price review submits selected proposals and exposes stale-review errors", 
   });
   render(<PricesPanel role="owner" revision={0} onDone={() => {}} />);
   const user = userEvent.setup({ document: dom.window.document });
+  await user.click(screen.getByRole("button", { name: "Aprobar precios" }));
   await user.click(
     await screen.findByRole("checkbox", {
       name: "Seleccionar propuesta Swinub",
     }),
   );
   assert.ok(screen.getByText("El feed no ofrece precios por condición"));
-  assert.ok(screen.getByText(/Publicación del feed:/));
+  assert.ok(screen.getByText(/Archivo de precios publicado:/));
   await user.type(
     screen.getByLabelText("Motivo de revisión"),
     "Cotización revisada",
   );
-  await user.click(
-    screen.getByRole("button", { name: "Revisar 1 seleccionadas" }),
-  );
+  await user.click(screen.getByRole("button", { name: "Guardar decisión" }));
   await screen.findByText("Propuesta vencida: precio cambió");
   assert.equal(sent[0].action, "bulk_price");
   assert.deepEqual(sent[0].payload.ids, [proposal]);
@@ -417,19 +470,21 @@ test("price checks keep retry keys and only fill evidence after the reviewer cho
   );
   const user = userEvent.setup({ document: dom.window.document });
   await user.click(
-    screen.getByRole("button", { name: "Verificar precio con fuentes" }),
+    screen.getByRole("button", { name: "Consultar precio de mercado" }),
   );
   assert.equal(
     (await screen.findByRole("alert")).textContent,
-    "Proveedor no disponible",
+    "Proveedor no disponible Puedes volver a intentar la consulta.",
   );
   await user.click(
-    screen.getByRole("button", { name: "Verificar precio con fuentes" }),
+    screen.getByRole("button", { name: "Consultar precio de mercado" }),
   );
-  await screen.findByText("Referencia disponible para revisar");
+  await screen.findByText("Precio listo para calcular");
   assert.equal(sent[0].key, sent[1].key);
   assert.equal(used.length, 0);
-  await user.click(screen.getByRole("button", { name: "Usar referencia" }));
+  await user.click(
+    screen.getByRole("button", { name: "Continuar con este precio" }),
+  );
   assert.equal(used[0].amount, 2);
   assert.equal(used[0].providerUpdatedAt, "2026-10-07T12:00:00Z");
 });
@@ -488,6 +543,225 @@ test("price-check results expose an undated feed without offering it as verified
     />,
   );
   assert.ok(screen.getByText("Fecha no publicada"));
-  assert.ok(screen.getByText("Vigencia sin acreditar"));
-  assert.equal(screen.queryByRole("button", { name: "Usar referencia" }), null);
+  assert.ok(screen.getByText("No podemos confirmar si está actualizado"));
+  assert.ok(
+    screen.getByRole("heading", { name: "No hay un precio vigente para usar" }),
+  );
+  assert.equal(
+    screen.queryByRole("button", { name: "Continuar con este precio" }),
+    null,
+  );
+});
+
+test("guided pricing preserves the saved reference and opens review without approving", async () => {
+  const report = priceReport();
+  const sent: any[] = [];
+  const done: string[] = [];
+  mock((url, body) => {
+    if (url.pathname === "/api/admin/price-check") return json({ report });
+    if (body) {
+      sent.push(body);
+      return json({ message: "Calculado" });
+    }
+    return url.searchParams.get("type") === "inventory"
+      ? json({ rows: [{ ...row, language: "en" }], total: 1 })
+      : json({ rows: [], total: 0 });
+  });
+  render(
+    <PricesPanel role="owner" revision={0} onDone={(m) => done.push(m)} />,
+  );
+  const user = userEvent.setup({ document: dom.window.document });
+  assert.ok(screen.getByRole("heading", { name: "1. Elige una carta" }));
+  assert.equal(
+    screen.queryByRole("button", { name: "Calcular precio en colones" }),
+    null,
+  );
+  assert.equal(
+    screen.queryByRole("button", { name: "Preparar consultas en lote" }),
+    null,
+  );
+  await user.click(await screen.findByRole("button", { name: /^Swinub/ }));
+  await user.click(
+    screen.getByRole("button", { name: "Consultar precio de mercado" }),
+  );
+  const next = await screen.findByRole("button", {
+    name: "Continuar con este precio",
+  });
+  assert.equal(sent.length, 0);
+  const sources = screen
+    .getByText("Ver precios y fuentes (1)")
+    .closest("details");
+  assert.equal(sources?.open, false);
+  await user.click(next);
+  const calculate = screen.getByRole("button", {
+    name: "Calcular precio en colones",
+  });
+  await user.click(calculate);
+  assert.equal(
+    sent.length,
+    0,
+    "Physical confirmation is required before calculating",
+  );
+  await user.click(screen.getByRole("checkbox", { name: /Confirmé set/ }));
+  await user.click(calculate);
+  await screen.findByRole("heading", { name: "Precios por aprobar" });
+  assert.equal(sent.length, 1);
+  assert.equal(sent[0].action, "evidence");
+  assert.deepEqual(sent[0].payload, {
+    id,
+    amount: datedReference.amount,
+    currency: datedReference.currency,
+    provider: "tcgplayer-via-tcgcsv",
+    sourceUrl: datedReference.sourceUrl,
+    observedAt: "2026-10-07T12:34:56.789Z",
+    priceType: "market_reference",
+    priceCheckId: report.jobId,
+    priceReferenceId: datedReference.id,
+    exactVariant: true,
+  });
+  assert.match(done[0], /apruébala para actualizar/);
+  assert.equal(
+    screen
+      .getByRole("button", { name: "Aprobar precios" })
+      .getAttribute("aria-pressed"),
+    "true",
+  );
+});
+
+test("unconfirmed cards link directly to inventory and cannot use a market reference", () => {
+  const report = priceReport();
+  report.variantSnapshot.identityVerified = false;
+  render(
+    <PriceCheckResults
+      report={report}
+      onUse={() => assert.fail("Identity is pending")}
+    />,
+  );
+  assert.ok(screen.getByRole("heading", { name: "Primero confirma la carta" }));
+  assert.equal(
+    screen
+      .getByRole("link", { name: "Confirmar carta en Inventario" })
+      .getAttribute("href"),
+    `/admin/inventario?listing=${id}`,
+  );
+  assert.equal(
+    screen.queryByRole("button", { name: "Continuar con este precio" }),
+    null,
+  );
+});
+
+for (const scenario of [
+  {
+    name: "EUR-only",
+    title: "Encontramos un precio solo en euros",
+    references: [
+      {
+        ...datedReference,
+        id: "eur",
+        currency: "EUR" as const,
+        marketplace: "cardmarket" as const,
+      },
+    ],
+  },
+  {
+    name: "stale",
+    title: "No hay un precio vigente para usar",
+    references: [{ ...datedReference, freshness: "stale" as const }],
+  },
+  {
+    name: "conflicting",
+    title: "Los precios no coinciden",
+    references: [
+      datedReference,
+      { ...datedReference, id: "other", amount: 40 },
+    ],
+  },
+]) {
+  test(`${scenario.name} results explain the next step and require manual evidence`, () => {
+    render(
+      <PriceCheckResults
+        report={priceReport({
+          status: "needs_review",
+          recommendedId: null,
+          references: scenario.references,
+        })}
+        onUse={() => assert.fail("Cannot continue with this result")}
+        onManual={() => {}}
+      />,
+    );
+    assert.ok(screen.getByRole("heading", { name: scenario.title }));
+    assert.equal(
+      screen.queryByRole("button", { name: "Continuar con este precio" }),
+      null,
+    );
+    assert.ok(
+      screen.getByRole("button", { name: "Ingresar un precio manual" }),
+    );
+  });
+}
+
+test("inventory links open the requested card rather than the first search result", async () => {
+  dom.window.history.replaceState({}, "", `/admin/inventario?listing=${id}`);
+  const unrelated = {
+    ...row,
+    listing_id: "00000000-0000-4000-8000-000000000050",
+    canonical_name: "Unrelated Card",
+  };
+  mock(() => json({ rows: [unrelated, row], total: 2 }));
+  render(<InventoryPanel role="owner" revision={0} onDone={() => {}} />);
+  const detail = await screen.findByRole("region", {
+    name: "Detalle de inventario",
+  });
+  assert.ok(within(detail).getByRole("heading", { name: "Swinub" }));
+  assert.equal(
+    within(detail).queryByRole("heading", { name: "Unrelated Card" }),
+    null,
+  );
+});
+
+test("history filters price jobs and requires a fresh consultation before calculating", async () => {
+  const requests: URL[] = [];
+  mock((u) => {
+    requests.push(u);
+    if (u.searchParams.get("type") === "jobs")
+      return json({
+        rows: [
+          {
+            id: "job",
+            entity_id: id,
+            status: "needs_review",
+            created_at: datedReference.checkedAt,
+            result: { verification: priceReport() },
+          },
+        ],
+        total: 1,
+      });
+    return json({ rows: [row], total: 1 });
+  });
+  render(<PricesPanel role="owner" revision={0} onDone={() => {}} />);
+  const user = userEvent.setup({ document: dom.window.document });
+  await user.click(
+    screen.getByRole("button", { name: "Consultas anteriores" }),
+  );
+  await user.click(await screen.findByText("Ver resultado de la consulta"));
+  assert.ok(
+    requests.some(
+      (u) =>
+        u.searchParams.get("type") === "jobs" &&
+        u.searchParams.get("kind") === "refresh_price" &&
+        !u.searchParams.has("status"),
+    ),
+  );
+  assert.equal(
+    screen.queryByRole("button", { name: "Continuar con este precio" }),
+    null,
+  );
+  await user.click(
+    screen.getByRole("button", { name: "Consultar esta carta de nuevo" }),
+  );
+  await screen.findByRole("button", { name: "Consultar precio de mercado" });
+  assert.equal(
+    screen.queryByRole("button", { name: "Calcular precio en colones" }),
+    null,
+  );
 });

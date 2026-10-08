@@ -234,9 +234,11 @@ export function ActionForm({
 export function ListingPicker({
   onSelect,
   revision,
+  label = "Buscar carta o ID",
 }: {
   onSelect: (r: InventoryRecord) => void;
   revision: number;
+  label?: string;
 }) {
   const [query, setQuery] = useState("");
   const r = useData<List<InventoryRecord>>(
@@ -246,7 +248,7 @@ export function ListingPicker({
   return (
     <div className="ops-picker">
       <label className="ops-field">
-        Buscar carta o ID
+        {label}
         <input
           value={query}
           onChange={(e) => setQuery(e.target.value)}
@@ -273,6 +275,11 @@ export function ListingPicker({
           </button>
         ))}
       </div>
+      {!r.loading && !r.error && r.data?.rows.length === 0 && (
+        <p className="ops-empty">
+          No hay cartas que coincidan con esta búsqueda.
+        </p>
+      )}
     </div>
   );
 }

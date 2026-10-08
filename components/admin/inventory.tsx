@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { variantLabel } from "@/lib/catalog";
 import {
   conditions,
@@ -39,6 +39,31 @@ export function InventoryPanel({
     `type=inventory&${filters}&page=${page}`,
     revision,
   );
+  const [linkError, setLinkError] = useState("");
+  useEffect(() => {
+    const id = new URLSearchParams(window.location.search).get("listing");
+    if (!id) return;
+    const controller = new AbortController();
+    setQuery(id);
+    fetch(`/api/admin?type=inventory&q=${encodeURIComponent(id)}`, {
+      signal: controller.signal,
+    })
+      .then(async (response) => {
+        const data = await response.json();
+        if (!response.ok)
+          throw new Error(data.error || "No se pudo cargar la carta");
+        const card = data.rows?.find(
+          (row: InventoryRecord) => row.listing_id === id,
+        );
+        if (!card)
+          throw new Error("No se encontró la carta. Búscala de nuevo.");
+        setSelected(card);
+      })
+      .catch((error) => {
+        if (error.name !== "AbortError") setLinkError(error.message);
+      });
+    return () => controller.abort();
+  }, []);
   return (
     <>
       <div className="ops-toolbar">
@@ -85,6 +110,11 @@ export function InventoryPanel({
         <CsvExport query={filters} disabled={r.loading} />
       </div>
       <Feedback {...r} />
+      {linkError && (
+        <p role="alert" className="ops-error">
+          {linkError}
+        </p>
+      )}
       <div className="tablewrap">
         <table>
           <thead>

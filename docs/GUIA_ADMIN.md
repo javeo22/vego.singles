@@ -74,7 +74,9 @@ Las filas inválidas permanecen visibles: omítelas o corrige el archivo y guard
 
 ## 4. Calcular y revisar precios
 
-En **Precios**, elige la variante y pulsa **Verificar precio con fuentes**. El informe muestra mercado original, feed, moneda, fecha real del proveedor, vigencia y diferencias. Confirma primero la identidad física en Inventario; después puedes **Usar referencia**, confirmar la variante y **Calcular propuesta**. El precio de la tienda solo cambia al aprobar la propuesta. Consulta [VERIFICACION_PRECIOS.md](VERIFICACION_PRECIOS.md) para cobertura y límites.
+En **Precios → Consultar una carta**, busca la variante y pulsa **Consultar precio de mercado**. Verás el precio encontrado y una indicación del siguiente paso. **Ver precios y fuentes** abre el mercado, servicio consultado, moneda, fecha y advertencias. Si la identidad está pendiente, el enlace abre la ficha de esa carta en Inventario.
+
+Después de confirmar la identidad física, pulsa **Continuar con este precio**, confirma la variante y **Calcular precio en colones**. El importe y la fecha originales se conservan automáticamente. La página pasa a **Aprobar precios**: marca la propuesta para abrir su cálculo y advertencias, elige **Aprobar y actualizar el precio**, escribe el motivo y pulsa **Guardar decisión**. Consultar y calcular conservan el precio actual; aprobar actualiza la tienda. **Consultas anteriores** permite revisar resultados y volver a consultar una carta. Consulta [VERIFICACION_PRECIOS.md](VERIFICACION_PRECIOS.md) para cobertura y límites.
 
 Para evidencia manual, agrega precio, moneda, proveedor, enlace HTTPS, fecha y tipo de evidencia. Confirma idioma, condición y acabado con la carta física. Un precio anunciado y una venta comparable se registran como evidencias distintas. Una fecha de consulta no demuestra cuándo se actualizó un precio.
 
@@ -105,7 +107,7 @@ Puedes bloquear temporalmente un precio en Inventario con un motivo. El bloqueo 
 - **TCGplayer directo:** consulta por `tcgplayer_product_id` existente si tienes `TCGPLAYER_ACCESS_TOKEN` autorizado. La renovación de ese token se gestiona con tu acceso de proveedor. La verificación manual permite conservar un identificador; importar asociaciones SKU detalladas de TCGplayer requiere validarlas con su catálogo.
 - **Otras condiciones, idiomas, juegos o productos sin cobertura:** verificación y evidencia manual. No se sustituye una carta japonesa/china por una inglesa ni se aplica un descuento de condición inventado.
 
-En **Hoy**, usa **Procesar siguiente trabajo**. **Consultar mercado de cartas verificadas** agrega hasta 50 variantes con stock y evita repetir consultas en las últimas 24 horas. Los resultados quedan en **Precios → Referencias obtenidas**; usar una referencia no la aprueba. El tope diario de trabajos se configura en Ajustes.
+En **Hoy**, usa **Procesar siguiente trabajo**. En **Precios → Consultas anteriores → Consultar varias cartas en lote**, **Preparar consultas en lote** agrega hasta 50 variantes con stock y evita repetir consultas en las últimas 24 horas. Los resultados quedan en **Consultas anteriores**; seleccionar una carta desde allí vuelve a consultar su precio antes de calcular. El tope diario de trabajos se configura en Ajustes.
 
 La cola persiste en la base de datos. Reintenta fallos transitorios hasta cinco veces, con espera creciente. Un turno de trabajador dura 60 segundos y se recupera tras vencer. Los resultados de un trabajador con turno vencido no pueden confirmar coincidencias.
 

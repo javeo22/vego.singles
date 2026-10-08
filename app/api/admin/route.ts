@@ -91,6 +91,11 @@ export async function GET(request: Request) {
               : "id";
       query = query.eq(key, p.get("id"));
     }
+    if (type === "jobs" && p.get("kind")) {
+      if (!["match_import", "refresh_price"].includes(p.get("kind")!))
+        throw new OperationError("Tipo de consulta inválido");
+      query = query.eq("kind", p.get("kind"));
+    }
     if (
       p.get("status") &&
       ![
