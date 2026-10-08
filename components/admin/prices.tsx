@@ -641,7 +641,7 @@ function PriceHistory({
       ))}
       {!jobs.loading && !jobs.error && jobs.data?.total === 0 && (
         <p className="price-empty">
-          Todavía no hay consultas guardadas. Empieza en Consultar una carta.
+          Todavía no hay consultas guardadas. Empieza en Actualizar una carta.
         </p>
       )}
       {jobs.data && (
