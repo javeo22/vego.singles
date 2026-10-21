@@ -1,3 +1,11 @@
+# Fixed store exchange — 2026-10-21
+
+The owner selected **₡500 per USD** as the store's fixed exchange. Automatic imports, price updates and maintenance scripts respect this setting. Fixed rates do not inherit the seven-day expiry of an official quote; the original configuration date remains an audit fact. Provider price quotes still require freshness.
+
+The admin UI labels this as a fixed store rate. Pending review suggestions are recalculated against the new rate while staying unapproved. Existing published prices are separate stored decisions. Tests cover ignored automatic-rate refreshes, old fixed configuration dates, worker operation without exchange network calls, proposal recalculation and the fixed-rate label.
+
+---
+
 # Guided review queue — 2026-10-21
 
 The admin screen now offers **Revisar una por una**. Each card stays open after saving until the reviewer presses **Siguiente**. The queue spans older updates, keeps a browser-local cursor, and allows skipping without marking a card resolved. A final screen distinguishes a finished pass from an empty queue.

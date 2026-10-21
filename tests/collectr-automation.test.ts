@@ -456,3 +456,79 @@ test("the earlier CSV intake quarantine event is released while subsequent manua
     await held.db.close();
   }
 });
+
+test("a fixed store exchange stays at 500, does not expire and ignores automatic rate refreshes", async () => {
+  const { db, id, run, item } = await setup();
+  try {
+    await db.exec("reset role");
+    await db.exec(
+      "update operation_settings set fx=500,fx_mode='fixed',fx_at=now()-interval '30 days',fx_source=null,revision=revision+1",
+    );
+    item.expected = (
+      await db.query<any>("select store_card_snapshot($1) data", [id])
+    ).rows[0].data;
+    await actor(db, owner, "service_role");
+    await db.query(
+      "select refresh_store_exchange($1,457.54,now(),'https://api.hacienda.go.cr/indicadores/tc/dolar')",
+      [run],
+    );
+    const result = await finish(db, item, proof(item, 2));
+    assert.equal(result.after, 1000);
+    assert.equal(result.published, true);
+    const s = (
+      await db.query<any>(
+        "select fx,fx_mode,fx_at<now()-interval '29 days' old_date from operation_settings",
+      )
+    ).rows[0];
+    assert.equal(Number(s.fx), 500);
+    assert.equal(s.fx_mode, "fixed");
+    assert.equal(s.old_date, true);
+  } finally {
+    await db.close();
+  }
+});
+test("changing the fixed exchange recalculates queued suggestions without approving prices or changing stock", async () => {
+  const { db, id, item } = await setup();
+  try {
+    await db.exec("reset role");
+    await db.exec("update operation_settings set fx=450,revision=revision+1");
+    item.expected = (
+      await db.query<any>("select store_card_snapshot($1) data", [id])
+    ).rows[0].data;
+    await actor(db, owner, "service_role");
+    const pending = await finish(db, item, proof(item, 120));
+    assert.equal(pending.after, 54000);
+    const revision = (
+      await db.query<any>("select revision from operation_settings")
+    ).rows[0].revision;
+    await db.exec(
+      "update operation_settings set fx=500,fx_mode='fixed',revision=revision+1",
+    );
+    assert.equal(
+      (
+        await db.query<any>("select recalculate_exchange_reviews($1) n", [
+          revision,
+        ])
+      ).rows[0].n,
+      1,
+    );
+    const current = (
+      await db.query<any>("select store_review_queue($1) data", [id])
+    ).rows[0].data.selected;
+    assert.equal(current.after, 60000);
+    assert.equal(current.status, "review");
+    assert.equal(current.published, false);
+    assert.equal(current.before, 0);
+    assert.equal(
+      (await db.query<any>("select sum(quantity) qty from stock_lots")).rows[0]
+        .qty,
+      2,
+    );
+    await actor(db, owner, "service_role");
+    const accepted = await finish(db, item, null, true);
+    assert.equal(accepted.after, 60000);
+    assert.equal(accepted.published, true);
+  } finally {
+    await db.close();
+  }
+});

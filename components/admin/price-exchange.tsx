@@ -12,7 +12,12 @@ export function PriceExchange({
   required = false,
 }: {
   settings:
-    | { fx?: number | null; fx_at?: string | null; fx_source?: string | null }
+    | {
+        fx?: number | null;
+        fx_at?: string | null;
+        fx_source?: string | null;
+        fx_mode?: string;
+      }
     | undefined;
   role: OperationRole;
   onDone: (message: string) => void;
@@ -46,7 +51,9 @@ export function PriceExchange({
           </h3>
           <p>
             {ready
-              ? `Fecha registrada: ${priceDate(settings!.fx_at)}`
+              ? settings?.fx_mode === "fixed"
+                ? "Tipo de cambio fijo de la tienda. Se conserva hasta que lo cambies."
+                : `Fecha registrada: ${priceDate(settings!.fx_at)}`
               : "Necesitamos un cambio vigente para calcular un precio en colones desde dólares."}
           </p>
         </div>

@@ -1415,3 +1415,28 @@ test("guided review retains failed decisions, skips without resolving and resume
   assert.equal(writes.length, 1);
   window.localStorage.clear();
 });
+
+test("a fixed 500 exchange is labeled as a store setting without an expired-rate warning", async () => {
+  render(
+    <PriceExchange
+      settings={{
+        fx: 500,
+        fx_mode: "fixed",
+        fx_at: "2020-01-01T00:00:00Z",
+        fx_source: null,
+      }}
+      role="reviewer"
+      onDone={() => {}}
+    />,
+  );
+  assert.ok(screen.getByRole("heading", { name: "1 USD = 500 colones" }));
+  assert.ok(
+    screen.getByText(
+      "Tipo de cambio fijo de la tienda. Se conserva hasta que lo cambies.",
+    ),
+  );
+  assert.equal(
+    screen.queryByText("Falta configurar el cambio USD/CRC") === null,
+    true,
+  );
+});

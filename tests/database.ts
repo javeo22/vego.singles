@@ -104,6 +104,12 @@ export async function database(beforeOperations = "") {
       "utf8",
     ),
   );
+  await db.exec(
+    await readFile(
+      "supabase/migrations/202610210007_fixed_exchange.sql",
+      "utf8",
+    ),
+  );
   await actor(db, owner);
   return db;
 }

@@ -109,26 +109,35 @@ export async function importCollectr(
   };
 }
 export async function processStoreUpdate(db: SupabaseClient, run: string) {
-  try {
-    const rate = await officialExchange();
-    await storeRpc(db, "refresh_store_exchange", {
-      p_run: run,
-      p_fx: rate.fx,
-      p_at: rate.observedAt,
-      p_source: rate.sourceUrl,
-    });
-  } catch (error) {
-    const { data } = await db
-      .from("operation_settings")
-      .select("fx,fx_at")
-      .single();
-    if (!pricingExchangeReady(data || undefined))
-      throw new Error(
-        error instanceof Error
-          ? `No se pudo actualizar el tipo de cambio: ${error.message}`
-          : "No se pudo actualizar el tipo de cambio oficial.",
-      );
-  }
+  const { data: configured, error: configurationError } = await db
+    .from("operation_settings")
+    .select("fx,fx_at,fx_source,fx_mode")
+    .single();
+  if (configurationError)
+    throw new Error("No se pudo cargar el tipo de cambio de la tienda.");
+  if (configured?.fx_mode === "fixed" && !pricingExchangeReady(configured))
+    throw new Error("Configura un tipo de cambio fijo válido.");
+  if (configured?.fx_mode !== "fixed")
+    try {
+      const rate = await officialExchange();
+      await storeRpc(db, "refresh_store_exchange", {
+        p_run: run,
+        p_fx: rate.fx,
+        p_at: rate.observedAt,
+        p_source: rate.sourceUrl,
+      });
+    } catch (error) {
+      const { data } = await db
+        .from("operation_settings")
+        .select("fx,fx_at,fx_mode")
+        .single();
+      if (!pricingExchangeReady(data || undefined))
+        throw new Error(
+          error instanceof Error
+            ? `No se pudo actualizar el tipo de cambio: ${error.message}`
+            : "No se pudo actualizar el tipo de cambio oficial.",
+        );
+    }
   const items = (await storeRpc(db, "claim_store_updates", {
     p_run: run,
     p_limit: 10,
@@ -158,7 +167,7 @@ export async function processStoreUpdate(db: SupabaseClient, run: string) {
     await storeRpc(db, "finish_store_updates", { p_items: proofs });
   const [summary, exchange] = await Promise.all([
     storeRpc(db, "store_update_summary", { p_run: run }),
-    db.from("operation_settings").select("fx,fx_at,fx_source").single(),
+    db.from("operation_settings").select("fx,fx_at,fx_source,fx_mode").single(),
   ]);
   return { ...summary, exchange: exchange.data };
 }

@@ -61,10 +61,21 @@ async function main() {
   const run = await query(
     `start_store_update('${args.includes("--review-only") ? "review" : "prices"}',null,null,'${requested}')`,
   );
-  const rate = await officialExchange();
-  await query(
-    `refresh_store_exchange('${run}',${rate.fx},'${rate.observedAt}','${rate.sourceUrl}')`,
-  );
+  const configuration = (
+    await raw("select fx,fx_at,fx_source,fx_mode from operation_settings")
+  )[0];
+  const rate =
+    configuration.fx_mode === "fixed"
+      ? {
+          fx: Number(configuration.fx),
+          observedAt: configuration.fx_at,
+          sourceUrl: configuration.fx_source,
+        }
+      : await officialExchange();
+  if (configuration.fx_mode !== "fixed")
+    await query(
+      `refresh_store_exchange('${run}',${rate.fx},'${rate.observedAt}','${rate.sourceUrl}')`,
+    );
   console.log(
     JSON.stringify({
       phase: "started",

@@ -80,7 +80,7 @@ export async function GET(request: Request) {
     const summary = await storeRpc(db, "store_update_summary", { p_run: run });
     const { data: settings } = await db
       .from("operation_settings")
-      .select("fx,fx_at,fx_source")
+      .select("fx,fx_at,fx_source,fx_mode")
       .single();
     return NextResponse.json(
       { ...summary, exchange: settings },

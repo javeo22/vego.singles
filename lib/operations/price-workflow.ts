@@ -70,9 +70,16 @@ export type PriceUpdate = {
   };
 };
 export function pricingExchangeReady(
-  settings: { fx?: number | null; fx_at?: string | null } | undefined,
+  settings:
+    { fx?: number | null; fx_at?: string | null; fx_mode?: string } | undefined,
   now = Date.now(),
 ) {
+  if (settings?.fx_mode === "fixed")
+    return (
+      Number.isFinite(Number(settings.fx)) &&
+      Number(settings.fx) >= 1 &&
+      Number(settings.fx) <= 10000
+    );
   const age = (now - Date.parse(settings?.fx_at || "")) / 3600000;
   return (
     !!settings?.fx &&

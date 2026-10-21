@@ -24,7 +24,7 @@ type Summary = {
   review: number;
   exceptions: Exception[];
   importExceptions?: Array<{ row: number; name: string; reason: string[] }>;
-  exchange?: { fx: number; fx_at: string; fx_source: string };
+  exchange?: { fx: number; fx_at: string; fx_source: string; fx_mode?: string };
   receipt?: {
     received: number;
     existing: number;
@@ -275,8 +275,9 @@ export function StoreUpdatePanel({
               <>
                 <h3>Un botón para todos los precios.</h3>
                 <p>
-                  Actualizamos el cambio USD/CRC y los precios listos. Las
-                  coincidencias inciertas y los precios bloqueados se conservan.
+                  Usamos el tipo de cambio de la tienda para actualizar los
+                  precios. Las coincidencias inciertas y los precios bloqueados
+                  se conservan.
                 </p>
                 <button
                   className="button"
@@ -353,15 +354,22 @@ export function StoreUpdatePanel({
                 {Number(data.exchange.fx).toLocaleString("es-CR", {
                   maximumFractionDigits: 2,
                 })}
-                {data.exchange.fx_at && (
-                  <>
-                    {" "}
-                    · Tipo de cambio del{" "}
-                    {new Date(data.exchange.fx_at).toLocaleDateString("es-CR", {
-                      timeZone: "America/Costa_Rica",
-                    })}
-                    .
-                  </>
+                {data.exchange.fx_mode === "fixed" ? (
+                  <> · Cambio fijo de la tienda.</>
+                ) : (
+                  data.exchange.fx_at && (
+                    <>
+                      {" "}
+                      · Tipo de cambio del{" "}
+                      {new Date(data.exchange.fx_at).toLocaleDateString(
+                        "es-CR",
+                        {
+                          timeZone: "America/Costa_Rica",
+                        },
+                      )}
+                      .
+                    </>
+                  )
                 )}
               </p>
             )}
