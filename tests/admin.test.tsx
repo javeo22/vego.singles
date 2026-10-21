@@ -1092,3 +1092,47 @@ test("expired proposals have a targeted recovery action instead of an approval f
   );
   assert.equal(sent.length, 0);
 });
+
+test("catalog comparisons remain visible for review without offering a price calculation or claiming a language", () => {
+  const report = priceReport({
+    status: "needs_review",
+    references: [],
+    recommendedId: null,
+    variantSnapshot: {
+      ...priceReport().variantSnapshot,
+      language: "unknown",
+      identityVerified: false,
+    },
+    catalogMatches: [
+      {
+        provider: "tcgcsv",
+        externalId: "123",
+        name: "Swinub",
+        set: "Battle Partners",
+        number: "106/100",
+        sourceUrl: "https://www.tcgplayer.com/product/123",
+        sourceLanguage: "unknown",
+        scope: "exact_product",
+        matchedFields: ["game", "set", "name", "number"],
+      },
+    ],
+    comparisonReferences: [{ ...datedReference, sourceLanguage: "unknown" }],
+  });
+  render(
+    <PriceCheckResults
+      report={report}
+      onUse={() => assert.fail("Unverified comparison used")}
+    />,
+  );
+  assert.ok(screen.getByText(/Coincidencias de catálogo para revisar/));
+  assert.ok(screen.getByText(/Idioma de la fuente: Sin confirmar/));
+  assert.equal(
+    screen.getByRole("link", { name: "Swinub" }).getAttribute("href"),
+    "https://www.tcgplayer.com/product/123",
+  );
+  assert.equal(
+    screen.queryByRole("button", { name: "Preparar precio en colones" }),
+    null,
+  );
+  assert.equal(screen.queryByText("Precio listo para calcular"), null);
+});

@@ -176,6 +176,68 @@ export function PriceCheckResults({
           </button>
         )}
       </div>
+      {!!report.catalogMatches?.length && (
+        <details className="price-source-details" open>
+          <summary>
+            Coincidencias de catálogo para revisar (
+            {report.catalogMatches.length})
+          </summary>
+          <p>
+            Estos vínculos identifican productos del catálogo. Confirma la carta
+            física, idioma, condición y acabado antes de usar un precio o
+            publicar.
+          </p>
+          <ul>
+            {report.catalogMatches.map((match) => (
+              <li key={`${match.provider}:${match.externalId}`}>
+                <a href={match.sourceUrl} target="_blank" rel="noreferrer">
+                  {match.name}
+                </a>
+                {" · "}
+                {serviceName(match.provider)} · {match.set} ·{" "}
+                {match.number || "Sin número"}
+                {" · "}
+                {match.scope === "exact_product"
+                  ? "Producto identificado"
+                  : "Posible impresión: revisar"}
+              </li>
+            ))}
+          </ul>
+          {!!report.comparisonReferences?.length && (
+            <>
+              <h4>Precios de comparación de los productos encontrados</h4>
+              <p>
+                Son orientativos y no se pueden usar para calcular un precio de
+                venta. TCGCSV no publica idioma ni condición por SKU; Scryfall
+                muestra el idioma de su ficha, que puede diferir del de tu
+                carta.
+              </p>
+              <ul>
+                {report.comparisonReferences.map((reference) => (
+                  <li key={reference.id}>
+                    <a
+                      href={reference.sourceUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                    >
+                      {referencePrice(reference)}
+                    </a>
+                    {" · "}
+                    {serviceName(reference.feed)} ·{" "}
+                    {variantLabel(reference.finish)}
+                    {" · Idioma de la fuente: "}
+                    {reference.sourceLanguage === "unknown"
+                      ? "Sin confirmar"
+                      : variantLabel(reference.sourceLanguage)}
+                    {" · "}
+                    {priceDate(reference.providerUpdatedAt)}
+                  </li>
+                ))}
+              </ul>
+            </>
+          )}
+        </details>
+      )}
       <details className="price-source-details">
         <summary>Ver precios y fuentes ({report.references.length})</summary>
         <p>

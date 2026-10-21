@@ -49,6 +49,9 @@ export type PriceCheck = {
   recommendedId: string | null;
   maxAgeHours: number;
   manualReviewRequired: true;
+  catalogMatches?: import("./source-matching").SourceMatch[];
+  comparisonReferences?: Array<MarketReference & { sourceLanguage: string }>;
+  reviewReasons?: string[];
 };
 export function priceVariantSnapshot(p: PricePrinting) {
   return {
