@@ -68,6 +68,12 @@ export async function database(beforeOperations = "") {
   await db.exec(
     `insert into admin_memberships values ('${reviewer}','reviewer',now()),('${stock}','stock',now());`,
   );
+  await db.exec(
+    await readFile(
+      "supabase/migrations/202610210001_delivery_and_collectr.sql",
+      "utf8",
+    ),
+  );
   await actor(db, owner);
   return db;
 }

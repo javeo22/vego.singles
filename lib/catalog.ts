@@ -3,6 +3,7 @@ export type Listing = {
   approved_price_crc: number;
   condition: string;
   finish: string;
+  treatment?: string;
   quantity?: number | null;
   kind?: "single" | "sealed";
   reference?: "charizard" | "sol-ring" | "stitch" | "star-wars";
@@ -14,6 +15,7 @@ export type Listing = {
     language: string;
     game: string;
     stock_image_url: string | null;
+    treatment?: string;
   } | null;
 };
 
@@ -121,6 +123,15 @@ const variantLabels: Record<string, string> = {
   foil: "Foil",
   "non-foil": "Sin foil",
   nonfoil: "Sin foil",
+  normal: "Sin foil",
+  non_foil: "Sin foil",
+  holofoil: "Holo",
+  holo: "Holo",
+  reverse_holofoil: "Reverse holo",
+  "reverse holofoil": "Reverse holo",
+  "reverse holo": "Reverse holo",
+  reverse_holo: "Reverse holo",
+  etched: "Foil grabado",
   "sealed product": "Producto sellado",
 };
 export function variantLabel(value: string | null | undefined) {

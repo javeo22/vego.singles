@@ -48,7 +48,7 @@ Usa un proyecto de ensayo para el ejercicio completo de venta. En producción re
 
 ## 3. Importar listas
 
-Puedes subir CSV/TSV o pegar celdas de una hoja de cálculo con encabezados. Límite: 2 MB y 1000 filas por lote. `docs/import-example.csv` es una plantilla; sus cartas no se publican automáticamente.
+Puedes subir CSV/TSV o pegar celdas de una hoja de cálculo con encabezados. Límite: 2 MB y 5000 filas por lote. `docs/import-example.csv` es una plantilla; sus cartas no se publican automáticamente.
 
 Columnas recomendadas:
 
@@ -67,7 +67,7 @@ Columnas recomendadas:
 | Kind                   | `single` o `sealed`; no confundir caja, sobre y carta.                                                                                                    |
 | Provider / External ID | Identificador estable si se conoce: `scryfall`, `pokemontcg`, `tcgdex`, etc.                                                                              |
 
-Collectr y encabezados comunes se detectan automáticamente. Usa **Ajustar columnas** cuando una columna no se reconoce y vuelve a previsualizar. No se toman los precios de mercado de un CSV como evidencia verificada vigente.
+Collectr y encabezados comunes se detectan automáticamente, incluida la columna `Variance`. Los nombres canónicos se separan de tratamientos como Borderless, First-Place Foil e Hyperspace; el nombre y todas las columnas originales se conservan. Elige el idioma de las filas sin idioma y confirma la moneda del archivo: no se supone que sean inglés o USD. Los sufijos JP/CN conservan prioridad sobre el idioma del lote. Se conservan el precio de mercado, su fecha y el override como referencias informativas. One Piece no está soportado; sus filas quedan inválidas. Watchlist y cartas graduadas requieren revisión separada. Usa **Ajustar columnas** cuando una columna no se reconoce y vuelve a previsualizar. No se toman los precios de mercado de un CSV como evidencia verificada vigente.
 
 **Recepción** suma copias nuevas. **Snapshot** establece el total contado de las variantes incluidas; no pone a cero variantes omitidas. Un snapshot debe resolver/omitir todas las filas y combinar duplicados de la misma variante. Si el stock cambió después de revisar una fila, la incorporación se detiene; revisa esa fila otra vez para capturar el estado actual.
 
@@ -131,7 +131,7 @@ Disponible = físico fuera de cuarentena − reservas vigentes. El carrito no re
 
 Cada recepción, ajuste, traslado y venta deja un movimiento. Para corregir un error, registra el movimiento compensatorio con motivo; no borres el historial. Trasladar desde UNASSIGNED conserva el total físico. Cuarentena retira disponibilidad sin borrar las copias y no puede retirar unidades reservadas.
 
-Con el servidor configurado, la tienda guarda la consulta y calcula precios/entrega en la base de datos antes de abrir WhatsApp. El mensaje incluye número, variante y total. Si no se puede registrar, el cliente ve el error y puede continuar por WhatsApp; esa consulta directa requiere registro operativo aparte y no aparece automáticamente en Solicitudes.
+Con el servidor configurado, la tienda guarda la consulta y calcula precios/entrega en la base de datos antes de abrir WhatsApp. El mensaje incluye número, variante y total. Las opciones actuales son envío por coordinar, express y retiro. Envío y express se cotizan en WhatsApp: el subtotal excluye ese costo hasta confirmarlo. En Solicitudes, registra el costo acordado y motivo antes de vender; el servidor impide registrar una venta con envío pendiente. Los pedidos anteriores de Duelist Kingdom conservan su historial, pero esa opción ya no se ofrece. Si no se puede registrar, el cliente ve el error y puede continuar por WhatsApp; esa consulta directa requiere registro operativo aparte y no aparece automáticamente en Solicitudes.
 
 En Solicitudes:
 

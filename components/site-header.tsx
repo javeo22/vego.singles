@@ -19,8 +19,17 @@ export function Brand() {
 export default function SiteHeader() {
   const pathname = usePathname();
   const router = useRouter();
-  const { query, setQuery, game, setGame, kind, setKind, cart, setCartOpen } =
-    useShop();
+  const {
+    query,
+    setQuery,
+    game,
+    setGame,
+    kind,
+    setKind,
+    cart,
+    setCartOpen,
+    updateFilters,
+  } = useShop();
   if (pathname.startsWith("/admin")) return null;
   const navigateFilter = (value: string, type: "game" | "kind") => {
     if (type === "game") setGame(value);
@@ -74,7 +83,7 @@ export default function SiteHeader() {
             )}
           </form>
           <div className="header-actions">
-            <a href="/login" className="account-link">
+            <a href="/login" className="account-link" aria-label="Cuenta">
               <User size={26} weight="light" />
               <span>Cuenta</span>
             </a>
@@ -94,9 +103,15 @@ export default function SiteHeader() {
                 pathname === "/" && !query && game === "all" && kind === "all"
               }
               onClick={() => {
-                setQuery("");
-                setGame("all");
-                setKind("all");
+                updateFilters({
+                  query: "",
+                  game: "all",
+                  kind: "all",
+                  set: "",
+                  language: "",
+                  finish: "",
+                  all: false,
+                });
                 if (pathname !== "/") router.push("/");
                 else window.scrollTo({ top: 0, behavior: "smooth" });
               }}

@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 import { z } from "zod";
 import { games, conditions, languages } from "./types";
+import { collectrCardName, maxImportRows } from "./collectr";
 export { games, conditions, languages } from "./types";
 export type ImportRow = {
   rowNumber: number;
@@ -19,6 +20,12 @@ export type ImportRow = {
   kind: string;
   errors: string[];
   raw: Record<string, string>;
+  sourceMarketPrice?: {
+    amount: number;
+    currency: "USD" | "CRC" | "unknown";
+    observedAt: string | null;
+  };
+  sourcePriceOverride?: { amount: number; currency: "USD" | "CRC" | "unknown" };
 };
 export function normalize(value: string) {
   return value.normalize("NFKC").trim().replace(/\s+/g, " ").toLowerCase();
@@ -112,7 +119,7 @@ const columns: Record<string, string[]> = {
   game: ["game", "category", "juego"],
   language: ["language", "card language", "idioma"],
   condition: ["condition", "card condition", "condición"],
-  finish: ["finish", "variant", "card variant", "acabado"],
+  finish: ["finish", "variance", "variant", "card variant", "acabado"],
   quantity: ["quantity", "qty", "cantidad", "count"],
   acquisitionCostCrc: ["cost crc", "costo crc", "acquisition_cost_crc"],
   provider: ["provider", "catalog source", "catalog_source"],
@@ -124,17 +131,31 @@ export function parseImport(
   text: string,
   mapping: Record<string, string> = {},
   defaultGame = "pokemon",
+  options: {
+    defaultLanguage?: string;
+    sourceCurrency?: "USD" | "CRC" | "unknown";
+  } = {},
 ) {
   if (Buffer.byteLength(text, "utf8") > 2_000_000)
     throw new Error("El archivo supera 2 MB");
   const parsed = parseDelimited(text);
   if (parsed.length < 2)
     throw new Error("Incluye encabezados y al menos una carta");
-  if (parsed.length > 1001)
-    throw new Error("Importa un máximo de 1000 filas por lote");
+  if (parsed.length > maxImportRows + 1)
+    throw new Error(`Importa un máximo de ${maxImportRows} filas por lote`);
   const headers = parsed[0].map(normalize);
   if (new Set(headers).size !== headers.length)
     throw new Error("Los encabezados deben ser únicos");
+  const collectr =
+    headers.includes("portfolio name") ||
+    (headers.includes("variance") && headers.includes("watchlist"));
+  const marketIndex = headers.findIndex((h) =>
+    /^market price(?:\s*\(as of \d{4}-\d{2}-\d{2}\))?$/.test(h),
+  );
+  const marketDate =
+    marketIndex >= 0
+      ? (headers[marketIndex].match(/\d{4}-\d{2}-\d{2}/)?.[0] ?? null)
+      : null;
   const indexes = Object.fromEntries(
     Object.entries(columns).map(([key, aliases]) => [
       key,
@@ -148,7 +169,11 @@ export function parseImport(
     const raw = Object.fromEntries(
       parsed[0].map((h, index) => [h, cells[index] || ""]),
     );
-    const name = get("name");
+    const sourceName = get("name");
+    const normalizedName = collectr
+      ? collectrCardName(sourceName)
+      : { name: sourceName, treatment: "standard" };
+    const name = normalizedName.name;
     const errors: string[] = [];
     let game = normalize(get("game") || defaultGame);
     game =
@@ -167,7 +192,11 @@ export function parseImport(
       )[game] || game;
     const language = normalizeLanguage(
       get("language") ||
-        (/\(JP\)/i.test(name) ? "ja" : /\(CN\)/i.test(name) ? "zh" : ""),
+        (/\((?:JP|JPN)(?: alternate art)?\)/i.test(sourceName)
+          ? "ja"
+          : /\(CN\)/i.test(sourceName)
+            ? "zh"
+            : options.defaultLanguage || ""),
     );
     const conditionText = get("condition");
     const condition =
@@ -192,9 +221,16 @@ export function parseImport(
     const costText = get("acquisitionCostCrc");
     const acquisitionCostCrc =
       costText === "" ? null : Number(costText.replace(/,/g, ""));
+    const inferredSealed =
+      collectr &&
+      !get("collectorNumber") &&
+      /\b(elite trainer box|gift bundle|booster (?:display|box|bundle|pack)|etb)\b/i.test(
+        sourceName,
+      );
     const kind =
       normalize(get("kind")) === "sealed" ||
-      normalize(get("kind")) === "sellado"
+      normalize(get("kind")) === "sellado" ||
+      inferredSealed
         ? "sealed"
         : "single";
     const finish =
@@ -205,6 +241,15 @@ export function parseImport(
       errors.push("Falta número de carta");
     if (!games.includes(game as (typeof games)[number]))
       errors.push("Juego no compatible");
+    const watchlistIndex = headers.indexOf("watchlist");
+    if (
+      watchlistIndex >= 0 &&
+      /^(true|1|yes)$/i.test(cells[watchlistIndex] || "")
+    )
+      errors.push("Watchlist: confirma stock propio antes de importar");
+    const grade = cells[headers.indexOf("grade")] || "";
+    if (grade && !/^(ungraded|raw)$/i.test(grade))
+      errors.push("Carta graduada: requiere revisión separada");
     if (!Number.isSafeInteger(quantity) || quantity < 0 || quantity > 100000)
       errors.push("Cantidad inválida");
     if (
@@ -214,6 +259,12 @@ export function parseImport(
       errors.push("Costo CRC inválido");
     if (cells.length !== headers.length)
       errors.push("La cantidad de columnas no coincide");
+    const marketAmount =
+      marketIndex >= 0 && cells[marketIndex] !== ""
+        ? Number(cells[marketIndex])
+        : NaN;
+    const overrideText = cells[headers.indexOf("price override")] || "";
+    const override = overrideText === "" ? NaN : Number(overrideText);
     return {
       rowNumber: i + 2,
       name,
@@ -221,16 +272,33 @@ export function parseImport(
       collectorNumber: get("collectorNumber"),
       game,
       language,
-      condition,
+      condition: kind === "sealed" ? "Sealed Product" : condition,
       finish,
       quantity,
       acquisitionCostCrc,
       provider: normalize(get("provider")),
       externalId: get("externalId"),
-      treatment: get("treatment") || "standard",
+      treatment: get("treatment") || normalizedName.treatment,
       kind,
       errors,
       raw,
+      ...(Number.isFinite(marketAmount) && marketAmount > 0
+        ? {
+            sourceMarketPrice: {
+              amount: marketAmount,
+              currency: options.sourceCurrency || "unknown",
+              observedAt: marketDate,
+            },
+          }
+        : {}),
+      ...(Number.isFinite(override) && override > 0
+        ? {
+            sourcePriceOverride: {
+              amount: override,
+              currency: options.sourceCurrency || "unknown",
+            },
+          }
+        : {}),
     };
   });
   return {
@@ -286,6 +354,7 @@ export function matchCandidates(row: ImportRow, cards: CatalogCard[]) {
   const exact = candidates.filter(
     (c) =>
       c.verified &&
+      normalize(c.name) === normalize(row.name) &&
       normalize(c.setName) === normalize(row.setName) &&
       sameCollectorNumber(c.collectorNumber, row.collectorNumber) &&
       row.language !== "unknown" &&

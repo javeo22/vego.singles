@@ -61,8 +61,107 @@ function shop(initial = displayExamples) {
 const originalFetch = globalThis.fetch;
 afterEach(() => {
   cleanup();
+  dom.window.localStorage.clear();
+  dom.window.history.replaceState(null, "", "/");
   globalThis.fetch = originalFetch;
   document.body.style.overflow = "";
+});
+
+test("saved cart uses current prices, clamps stock, drops unavailable cards and restores delivery choice", async () => {
+  const fixture = {
+    ...displayExamples[0],
+    id: "current-card",
+    sample: false,
+    quantity: 2,
+    approved_price_crc: 7000,
+  };
+  dom.window.localStorage.setItem(
+    "vego.cart.v1",
+    JSON.stringify({
+      version: 1,
+      items: [
+        { id: fixture.id, count: 9 },
+        { id: "removed-card", count: 1 },
+      ],
+    }),
+  );
+  dom.window.localStorage.setItem("vego.fulfillment.v1", "express");
+  const user = shop([fixture]);
+  await user.click(screen.getByRole("button", { name: "Open cart" }));
+  const cart = screen.getByRole("dialog", { name: "Tu carrito." });
+  assert.equal(within(cart).getAllByText("₡14,000").length, 3);
+  assert.equal(
+    (within(cart).getByLabelText("Entrega") as HTMLSelectElement).value,
+    "express",
+  );
+  assert.match(
+    screen.getByRole("status").textContent || "",
+    /cambiaron de disponibilidad/,
+  );
+  const saved = JSON.parse(dom.window.localStorage.getItem("vego.cart.v1")!);
+  assert.deepEqual(saved, {
+    version: 1,
+    items: [{ id: fixture.id, count: 2 }],
+  });
+});
+
+test("shared catalog URL restores exact printing filters and product details", async () => {
+  dom.window.history.replaceState(
+    null,
+    "",
+    "/?game=magic&set=Commander+Masters&lang=Ingl%C3%A9s&finish=Sin+foil&card=display-sol-ring",
+  );
+  const user = shop();
+  assert.equal(
+    within(screen.getByRole("tabpanel")).getAllByRole("article").length,
+    1,
+  );
+  const detail = screen.getByRole("dialog", { name: "Sol Ring" });
+  assert.ok(within(detail).getByText("396"));
+  await user.click(
+    within(detail).getByRole("button", { name: "Cerrar detalles de la carta" }),
+  );
+  assert.equal(
+    new URL(dom.window.location.href).searchParams.has("card"),
+    false,
+  );
+  assert.equal(
+    new URL(dom.window.location.href).searchParams.get("game"),
+    "magic",
+  );
+});
+
+test("catalog loads results in batches and filters exact set, language and finish", async () => {
+  const rows = Array.from({ length: 50 }, (_, i) => ({
+    ...displayExamples[0],
+    id: `card-${i}`,
+    sample: false,
+    finish: i === 49 ? "reverse_holofoil" : "holofoil",
+    card_printings: {
+      ...displayExamples[0].card_printings!,
+      collector_number: String(i),
+    },
+  }));
+  const user = shop(rows);
+  await user.click(screen.getByRole("button", { name: "Ver todo" }));
+  assert.equal(
+    within(screen.getByRole("tabpanel")).getAllByRole("article").length,
+    24,
+  );
+  await user.click(screen.getByRole("button", { name: "Cargar más cartas" }));
+  assert.equal(
+    within(screen.getByRole("tabpanel")).getAllByRole("article").length,
+    48,
+  );
+  await user.selectOptions(screen.getByLabelText("Acabado"), "Reverse holo");
+  assert.equal(
+    within(screen.getByRole("tabpanel")).getAllByRole("article").length,
+    1,
+  );
+  assert.equal(
+    new URL(dom.window.location.href).searchParams.get("finish"),
+    "Reverse holo",
+  );
 });
 
 test("catalog search filters by card and reset restores the display", async () => {
@@ -154,7 +253,10 @@ test("cart enforces available stock, updates totals, removes items, and unlocks 
   const checkout = new URL(opened);
   assert.equal(checkout.hostname, "wa.me");
   assert.match(checkout.searchParams.get("text") || "", /2x Charizard ex/);
-  assert.match(checkout.searchParams.get("text") || "", /Subtotal: ₡24,600/);
+  assert.match(
+    checkout.searchParams.get("text") || "",
+    /Subtotal de cartas: ₡24,600/,
+  );
   await user.click(within(cart).getByRole("button", { name: "Quitar" }));
   assert.ok(within(cart).getByText("Tu carrito está vacío."));
   await user.click(
@@ -416,8 +518,9 @@ test("saved WhatsApp inquiry uses server totals and retains its key after a fail
       JSON.stringify({
         number: "VS-123",
         subtotal: 15000,
-        delivery: 500,
-        total: 15500,
+        delivery: 0,
+        deliveryPending: true,
+        total: 15000,
         items: [
           {
             quantity: 1,
@@ -452,6 +555,10 @@ test("saved WhatsApp inquiry uses server totals and retains its key after a fail
   await user.click(screen.getByRole("button", { name: "Agregar" }));
   await user.click(screen.getByRole("button", { name: "Open cart" }));
   const dialog = within(screen.getByRole("dialog", { name: "Tu carrito." }));
+  await user.selectOptions(
+    dialog.getByRole("combobox", { name: "Entrega" }),
+    "express",
+  );
   await user.click(
     dialog.getByRole("button", { name: "Comprar por WhatsApp" }),
   );
@@ -468,7 +575,11 @@ test("saved WhatsApp inquiry uses server totals and retains its key after a fail
   assert.equal(sent[0].key, sent[1].key);
   const message = new URL(navigated[0]).searchParams.get("text")!;
   assert.match(message, /VS-123/);
-  assert.match(message, /15,500/);
+  assert.match(message, /Total sin envío: ₡15,000/);
+  assert.equal(sent[0].fulfillment, "express");
+  assert.match(message, /Envío express/);
+  assert.match(message, /costo adicional por confirmar/);
+  assert.doesNotMatch(message, /Duelist Kingdom|Entrega: ₡0/);
   assert.match(message, /199/);
   assert.match(message, /no reserva/);
 });

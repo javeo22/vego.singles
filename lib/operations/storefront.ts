@@ -5,6 +5,7 @@ export function normalizePublicListing(row: Record<string, unknown>): Listing {
   const quantity = parseStockQuantity(row.quantity);
   return {
     ...row,
+    treatment: (row.card_printings as Listing["card_printings"])?.treatment,
     quantity: quantity !== null ? quantity : row.available === false ? 0 : null,
   } as Listing;
 }

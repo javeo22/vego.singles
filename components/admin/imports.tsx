@@ -18,6 +18,7 @@ import {
   type List,
 } from "./shared";
 import type { ImportRow, CatalogCard } from "@/lib/operations/imports";
+import { maxImportRows } from "@/lib/operations/collectr";
 export function ImportsPanel({
   role,
   revision,
@@ -30,6 +31,8 @@ export function ImportsPanel({
   const [text, setText] = useState(""),
     [name, setName] = useState("Importación"),
     [game, setGame] = useState("pokemon"),
+    [defaultLanguage, setDefaultLanguage] = useState("unknown"),
+    [sourceCurrency, setSourceCurrency] = useState("unknown"),
     [mode, setMode] = useState("receipt"),
     [reference, setReference] = useState(""),
     [mapping, setMapping] = useState<Record<string, string>>({}),
@@ -39,6 +42,7 @@ export function ImportsPanel({
       total: number;
     } | null>(null),
     [error, setError] = useState(""),
+    [previewCurrent, setPreviewCurrent] = useState(false),
     [busy, setBusy] = useState(false),
     [batch, setBatch] = useState(""),
     [page, setPage] = useState(0),
@@ -61,14 +65,18 @@ export function ImportsPanel({
           name,
           mode,
           defaultGame: game,
+          defaultLanguage,
+          sourceCurrency,
           reference,
           mapping,
         }),
       });
       const d = await r.json();
       if (!r.ok) throw new Error(d.error);
-      if (action === "preview_import") setPreview(d);
-      else {
+      if (action === "preview_import") {
+        setPreview(d);
+        setPreviewCurrent(true);
+      } else {
         setBatch(d.id);
         setPage(0);
         onDone(d.message);
@@ -125,6 +133,37 @@ export function ImportsPanel({
             </select>
           </label>
           <label className="ops-field">
+            Idioma si falta en el archivo
+            <select
+              value={defaultLanguage}
+              onChange={(e) => {
+                setDefaultLanguage(e.target.value);
+                setPreview(null);
+              }}
+            >
+              <option value="unknown">Confirmar por carta</option>
+              {languages.map((l) => (
+                <option key={l} value={l}>
+                  {variantLabel(l)}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="ops-field">
+            Moneda de precios del archivo
+            <select
+              value={sourceCurrency}
+              onChange={(e) => {
+                setSourceCurrency(e.target.value);
+                setPreview(null);
+              }}
+            >
+              <option value="unknown">Sin confirmar</option>
+              <option value="USD">USD</option>
+              <option value="CRC">CRC</option>
+            </select>
+          </label>
+          <label className="ops-field">
             Proceso
             <select value={mode} onChange={(e) => setMode(e.target.value)}>
               <option value="receipt">Recepción: sumar nuevas copias</option>
@@ -147,8 +186,10 @@ export function ImportsPanel({
           />
         </label>
         <p className="small-note">
-          Máximo 1000 filas. Un snapshot conserva las variantes omitidas; revisa
-          las diferencias antes de incorporarlo.
+          Máximo {maxImportRows.toLocaleString("es-CR")} filas. Para una cartera
+          completa de Collectr usa Snapshot y revisa las diferencias. Recepción
+          suma copias nuevas. Los precios del archivo se conservan como
+          referencia; requieren verificación antes de publicar.
         </p>
         {error && (
           <p role="alert" className="ops-error">
@@ -165,7 +206,7 @@ export function ImportsPanel({
           </button>
           <button
             className="button"
-            disabled={!preview || busy}
+            disabled={!preview || !previewCurrent || busy}
             onClick={() => send("stage_import")}
           >
             Guardar lote para revisión
@@ -174,7 +215,9 @@ export function ImportsPanel({
         {preview && (
           <>
             <p>
-              {preview.total} filas detectadas. Las primeras 10 aparecen aquí.
+              {preview.total} filas detectadas. Las primeras 10 aparecen aquí.{" "}
+              {preview.rows.filter((r) => r.errors.length > 0).length} filas
+              requieren corrección.
             </p>
             <details>
               <summary>Ajustar columnas</summary>
@@ -197,9 +240,10 @@ export function ImportsPanel({
                     {label}
                     <select
                       value={mapping[key] || ""}
-                      onChange={(e) =>
-                        setMapping({ ...mapping, [key]: e.target.value })
-                      }
+                      onChange={(e) => {
+                        setMapping({ ...mapping, [key]: e.target.value });
+                        setPreviewCurrent(false);
+                      }}
                     >
                       <option value="">Detectar automáticamente</option>
                       {preview.headers.map((h) => (
@@ -225,6 +269,8 @@ export function ImportsPanel({
                     <th>Carta</th>
                     <th>Set / número</th>
                     <th>Idioma</th>
+                    <th>Acabado / tratamiento</th>
+                    <th>Referencia del archivo</th>
                     <th>Cantidad</th>
                     <th>Validación</th>
                   </tr>
@@ -238,6 +284,14 @@ export function ImportsPanel({
                         {r.setName} / {r.collectorNumber}
                       </td>
                       <td>{variantLabel(r.language)}</td>
+                      <td>
+                        {r.finish || "Por confirmar"} · {r.treatment}
+                      </td>
+                      <td>
+                        {r.sourceMarketPrice
+                          ? `${r.sourceMarketPrice.amount} ${r.sourceMarketPrice.currency === "unknown" ? "(moneda sin confirmar)" : r.sourceMarketPrice.currency} · ${r.sourceMarketPrice.observedAt || "sin fecha"}`
+                          : "Sin referencia"}
+                      </td>
                       <td>{r.quantity}</td>
                       <td>{r.errors.join("; ") || "Lista para identificar"}</td>
                     </tr>
@@ -426,20 +480,22 @@ function ResolveRow({
           ...(c && /^[0-9a-f-]{36}$/i.test(c.id)
             ? { card_printing_id: c.id }
             : {
-                candidate: c || {
-                  id: "manual",
-                  name: d.get("name"),
-                  setName: d.get("setName"),
-                  collectorNumber: d.get("number"),
-                  game: r.game,
-                  language: d.get("language"),
-                  provider: d.get("provider"),
-                  externalId: d.get("externalId"),
-                  imageUrl: d.get("imageUrl") || null,
-                  verified: false,
-                  treatment: d.get("treatment"),
-                  kind: r.kind,
-                },
+                candidate: c
+                  ? { ...c, treatment: d.get("treatment") }
+                  : {
+                      id: "manual",
+                      name: d.get("name"),
+                      setName: d.get("setName"),
+                      collectorNumber: d.get("number"),
+                      game: r.game,
+                      language: d.get("language"),
+                      provider: d.get("provider"),
+                      externalId: d.get("externalId"),
+                      imageUrl: d.get("imageUrl") || null,
+                      verified: false,
+                      treatment: d.get("treatment"),
+                      kind: r.kind,
+                    },
               }),
         })}
       >
@@ -475,14 +531,15 @@ function ResolveRow({
               value={r.externalId}
             />
             <Field label="Imagen HTTPS" name="imageUrl" type="url" />
-            <Field
-              label="Tratamiento / edición"
-              name="treatment"
-              value={r.treatment}
-              required
-            />
           </>
         )}
+        <Field
+          label="Tratamiento / edición"
+          name="treatment"
+          value={c && /^[0-9a-f-]{36}$/i.test(c.id) ? c.treatment : r.treatment}
+          disabled={Boolean(c && /^[0-9a-f-]{36}$/i.test(c.id))}
+          required
+        />
         <Field
           label="Idioma confirmado"
           name="language"

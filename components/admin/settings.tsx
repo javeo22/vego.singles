@@ -138,14 +138,11 @@ export function SettingsPanel({
               value={s.daily_job_limit}
               required
             />
-            <Field
-              label="Entrega Duelist Kingdom CRC"
-              name="delivery"
-              type="number"
-              min="0"
-              value={s.delivery_fee_crc}
-              required
-            />
+            <input name="delivery" type="hidden" value={s.delivery_fee_crc} />
+            <p className="small-note">
+              El envío se cotiza por solicitud en WhatsApp y se registra en
+              Solicitudes antes de la venta.
+            </p>
             <p className="small-note">
               Puedes ingresar el tipo de cambio manualmente, sin enlace. Es
               vigente por 7 días. Cambiar la política invalida propuestas

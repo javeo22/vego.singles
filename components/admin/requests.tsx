@@ -1,6 +1,7 @@
 "use client";
 import { useState } from "react";
 import type { OperationRole } from "@/lib/operations/types";
+import { fulfillmentLabel } from "@/lib/fulfillment";
 import {
   ActionForm,
   Feedback,
@@ -81,7 +82,10 @@ export function RequestsPanel({
                   </button>
                 </td>
                 <td>{date(q.created_at)}</td>
-                <td>{money(q.total_crc)}</td>
+                <td>
+                  {money(q.total_crc)}
+                  {q.delivery_fee_pending ? " + envío por cotizar" : ""}
+                </td>
                 <td>{statusLabel(q.status)}</td>
               </tr>
             ))}
@@ -102,10 +106,9 @@ export function RequestsPanel({
           </div>
           <p>
             {statusLabel(selected.status)} ·{" "}
-            {selected.fulfillment_method === "pickup"
-              ? "Retiro"
-              : "Duelist Kingdom"}{" "}
-            · Total {money(selected.total_crc)}
+            {fulfillmentLabel(selected.fulfillment_method)} ·{" "}
+            {selected.delivery_fee_pending ? "Total sin envío" : "Total"}{" "}
+            {money(selected.total_crc)}
           </p>
           <p>{selected.customer_note}</p>
           <Feedback {...items} />
@@ -124,6 +127,41 @@ export function RequestsPanel({
             </div>
           ))}
           <div className="ops-detail-grid">
+            {["inquiry", "reserved"].includes(selected.status) &&
+              selected.fulfillment_method !== "pickup" && (
+                <ActionForm
+                  action="quote_delivery"
+                  label="Confirmar costo de envío"
+                  disabled={disabled}
+                  onDone={done}
+                  payload={(d) => ({
+                    id: selected.id,
+                    amountCrc: Number(d.get("delivery")),
+                    reason: d.get("reason"),
+                  })}
+                >
+                  <p>
+                    {selected.delivery_fee_pending
+                      ? "Envío pendiente de cotizar."
+                      : `Envío acordado: ${money(selected.delivery_fee_crc)}.`}{" "}
+                    Confirma el costo con el cliente por WhatsApp.
+                  </p>
+                  <Field
+                    label="Costo de envío acordado (CRC)"
+                    name="delivery"
+                    type="number"
+                    min="0"
+                    max="100000"
+                    value={
+                      selected.delivery_fee_pending
+                        ? ""
+                        : selected.delivery_fee_crc
+                    }
+                    required
+                  />
+                  <Field label="Motivo / acuerdo" name="reason" required />
+                </ActionForm>
+              )}
             {selected.status === "inquiry" && (
               <>
                 <ActionForm
@@ -161,7 +199,7 @@ export function RequestsPanel({
               <ActionForm
                 action="sell_request"
                 label="Registrar venta"
-                disabled={disabled}
+                disabled={disabled || selected.delivery_fee_pending}
                 onDone={done}
                 payload={() => ({ id: selected.id })}
               >

@@ -17,6 +17,7 @@ import {
 } from "@/lib/catalog";
 import ProductArt from "./product-art";
 import { useShop } from "./shop-provider";
+import { defaultFilters } from "@/lib/shop-state";
 
 export default function Catalog({
   initial,
@@ -25,15 +26,84 @@ export default function Catalog({
   initial: Listing[];
   unavailable?: boolean;
 }) {
-  const { query, setQuery, game, setGame, kind, setKind, add, setCartOpen } =
-    useShop();
-  const [tab, setTab] = useState("featured");
-  const [viewAll, setViewAll] = useState(false);
-  const [priceOrder, setPriceOrder] = useState("desc");
+  const {
+    query,
+    game,
+    kind,
+    filters,
+    updateFilters,
+    registerInventory,
+    add,
+    setCartOpen,
+  } = useShop();
+  const tab = kind === "sealed" ? "sealed" : "featured";
+  const setTab = (value: string) =>
+    updateFilters({ kind: value === "sealed" ? "sealed" : "all" });
+  const [limit, setLimit] = useState(24);
   const [selected, setSelected] = useState<Listing | null>(null);
   const detail = useRef<HTMLDialogElement>(null);
+  const pushedDetail = useRef(false);
   const isDisplay = initial.length === 0;
   const source = isDisplay ? displayExamples : initial;
+  const active = Boolean(
+    query ||
+    game !== "all" ||
+    kind !== "all" ||
+    filters.set ||
+    filters.language ||
+    filters.finish,
+  );
+  useEffect(
+    () => registerInventory(initial, unavailable),
+    [initial, unavailable, registerInventory],
+  );
+  useEffect(() => setLimit(24), [filters]);
+  useEffect(() => {
+    const read = () => {
+      const id = new URL(window.location.href).searchParams.get("card");
+      setSelected(source.find((item) => item.id === id) || null);
+      pushedDetail.current = false;
+    };
+    read();
+    window.addEventListener("popstate", read);
+    return () => window.removeEventListener("popstate", read);
+  }, [source]);
+  const openDetail = (item: Listing) => {
+    const url = new URL(window.location.href);
+    url.searchParams.set("card", item.id);
+    window.history.pushState(window.history.state, "", url);
+    pushedDetail.current = true;
+    setSelected(item);
+  };
+  const closeDetail = () => {
+    if (!new URL(window.location.href).searchParams.has("card")) return;
+    const url = new URL(window.location.href);
+    url.searchParams.delete("card");
+    if (pushedDetail.current) window.history.back();
+    else window.history.replaceState(window.history.state, "", url);
+    pushedDetail.current = false;
+    setSelected(null);
+  };
+  const scope = source.filter(
+    (item) =>
+      item.card_printings &&
+      (game === "all" || item.card_printings.game === game) &&
+      (kind === "all" || (item.kind || "single") === kind),
+  );
+  const options = (field: "set" | "language" | "finish") =>
+    [
+      ...new Set(
+        scope
+          .map((item) =>
+            field === "finish"
+              ? variantLabel(item.finish)
+              : field === "set"
+                ? item.card_printings!.set_name
+                : variantLabel(item.card_printings!.language),
+          )
+          .filter(Boolean),
+      ),
+    ].sort((a, b) => a.localeCompare(b, "es"));
   const items = useMemo(
     () =>
       source
@@ -43,19 +113,20 @@ export default function Catalog({
             printing &&
             (game === "all" || printing.game === game) &&
             (kind === "all" || (item.kind || "single") === kind) &&
-            (tab !== "sealed" || item.kind === "sealed") &&
+            (!filters.set || printing.set_name === filters.set) &&
+            (!filters.language ||
+              variantLabel(printing.language) === filters.language) &&
+            (!filters.finish || variantLabel(item.finish) === filters.finish) &&
             `${printing.canonical_name} ${printing.set_name} ${printing.collector_number}`
               .toLowerCase()
               .includes(query.toLowerCase().trim())
           );
         })
-        .sort((a, b) => comparePrice(a, b, priceOrder === "asc")),
-    [source, game, query, kind, tab, priceOrder],
+        .sort((a, b) => comparePrice(a, b, filters.order === "asc")),
+    [source, game, query, kind, filters],
   );
   const shown =
-    viewAll || query || game !== "all" || kind !== "all"
-      ? items
-      : items.slice(0, 4);
+    filters.all || active ? items.slice(0, limit) : items.slice(0, 4);
   useEffect(() => {
     if (selected && !detail.current?.open) detail.current?.showModal();
     if (!selected && detail.current?.open) detail.current?.close();
@@ -109,8 +180,8 @@ export default function Catalog({
         <label className="catalog-order">
           Precio
           <select
-            value={priceOrder}
-            onChange={(event) => setPriceOrder(event.target.value)}
+            value={filters.order}
+            onChange={(event) => updateFilters({ order: event.target.value })}
             aria-label="Ordenar por precio"
           >
             <option value="asc">Menor a mayor</option>
@@ -119,15 +190,56 @@ export default function Catalog({
         </label>
         <button
           className="view-all"
-          onClick={() => setViewAll((value) => !value)}
+          onClick={() =>
+            updateFilters({
+              ...defaultFilters,
+              order: filters.order,
+              all: !filters.all,
+            })
+          }
         >
-          {viewAll ? "Ver destacadas" : "Ver todo"}
+          {filters.all ? "Ver destacadas" : "Ver todo"}
           <ArrowRight size={21} />
         </button>
       </div>
-      {(query || game !== "all" || kind !== "all") && (
+      <div className="catalog-filters" aria-label="Filtros del catálogo">
+        {(
+          [
+            ["set", "Set"],
+            ["language", "Idioma"],
+            ["finish", "Acabado"],
+          ] as const
+        ).map(([field, label]) => (
+          <label key={field}>
+            {label}
+            <select
+              value={filters[field]}
+              onChange={(event) =>
+                updateFilters({ [field]: event.target.value })
+              }
+            >
+              <option value="">
+                {field === "set"
+                  ? "Todos los sets"
+                  : field === "language"
+                    ? "Todos los idiomas"
+                    : "Todos los acabados"}
+              </option>
+              {filters[field] && !options(field).includes(filters[field]) && (
+                <option value={filters[field]}>{filters[field]}</option>
+              )}
+              {options(field).map((value) => (
+                <option key={value} value={value}>
+                  {value}
+                </option>
+              ))}
+            </select>
+          </label>
+        ))}
+      </div>
+      {(active || filters.all) && (
         <div className="filter-summary">
-          <span>
+          <span role="status">
             {items.length} {items.length === 1 ? "resultado" : "resultados"}
             {query && ` para “${query}”`}
             {game !== "all" && ` · ${gameNames[game]}`}
@@ -136,10 +248,7 @@ export default function Catalog({
           </span>
           <button
             onClick={() => {
-              setQuery("");
-              setGame("all");
-              setKind("all");
-              setTab("featured");
+              updateFilters({ ...defaultFilters });
             }}
           >
             Limpiar filtros <X size={14} />
@@ -157,15 +266,12 @@ export default function Catalog({
             <button
               className="product-art-button"
               aria-label={`Ver ${item.card_printings?.canonical_name}`}
-              onClick={() => setSelected(item)}
+              onClick={() => openDetail(item)}
             >
               <ProductArt item={item} />
             </button>
             <div className="product-body">
-              <button
-                className="product-name"
-                onClick={() => setSelected(item)}
-              >
+              <button className="product-name" onClick={() => openDetail(item)}>
                 {item.card_printings?.canonical_name}
               </button>
               <div className="product-meta">
@@ -207,6 +313,19 @@ export default function Catalog({
           </article>
         ))}
       </div>
+      {shown.length < items.length && (filters.all || active) && (
+        <div className="catalog-more">
+          <p className="muted">
+            Mostrando {shown.length} de {items.length}
+          </p>
+          <button
+            className="button secondary"
+            onClick={() => setLimit((value) => value + 24)}
+          >
+            Cargar más cartas
+          </button>
+        </div>
+      )}
       {shown.length === 0 && (
         <div className="empty">
           <MagnifyingGlass size={35} weight="light" />
@@ -215,10 +334,7 @@ export default function Catalog({
           <button
             className="button secondary"
             onClick={() => {
-              setQuery("");
-              setGame("all");
-              setKind("all");
-              setTab("featured");
+              updateFilters({ ...defaultFilters });
             }}
           >
             Limpiar filtros
@@ -235,10 +351,12 @@ export default function Catalog({
         ref={detail}
         className="product-dialog"
         aria-labelledby="product-detail-title"
-        onCancel={() => setSelected(null)}
-        onClose={() => setSelected(null)}
+        onCancel={closeDetail}
+        onClose={() => {
+          if (selected) closeDetail();
+        }}
         onClick={(event) => {
-          if (event.target === event.currentTarget) setSelected(null);
+          if (event.target === event.currentTarget) closeDetail();
         }}
       >
         {selected && (
@@ -246,7 +364,7 @@ export default function Catalog({
             <button
               className="icon-button detail-close"
               aria-label="Cerrar detalles de la carta"
-              onClick={() => setSelected(null)}
+              onClick={closeDetail}
             >
               <X size={23} />
             </button>
@@ -262,6 +380,12 @@ export default function Catalog({
               </h2>
               <p className="muted">{selected.card_printings?.set_name}</p>
               <dl className="variant-details">
+                {selected.card_printings?.collector_number && (
+                  <div>
+                    <dt>Número de colección</dt>
+                    <dd>{selected.card_printings.collector_number}</dd>
+                  </div>
+                )}
                 <div>
                   <dt>Condición</dt>
                   <dd>{variantLabel(selected.condition)}</dd>
@@ -276,6 +400,12 @@ export default function Catalog({
                     <dd>{variantLabel(selected.finish)}</dd>
                   </div>
                 )}
+                {selected.treatment && selected.treatment !== "standard" && (
+                  <div>
+                    <dt>Edición</dt>
+                    <dd>{variantLabel(selected.treatment)}</dd>
+                  </div>
+                )}
               </dl>
               <strong className="detail-price">
                 {formatPrice(selected.approved_price_crc)}
@@ -286,7 +416,7 @@ export default function Catalog({
                 onClick={() => {
                   add(selected);
                   if (stockQuantity(selected) === null) setCartOpen(true);
-                  setSelected(null);
+                  closeDetail();
                 }}
               >
                 <ShoppingCart size={20} />

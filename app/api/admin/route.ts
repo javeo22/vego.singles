@@ -164,7 +164,10 @@ export async function POST(request: Request) {
     let action: string, payload: unknown, key: string;
     if (raw.action === "stage_import" || raw.action === "preview_import") {
       const input = importSchema.parse({ ...raw, action: "stage_import" });
-      const parsed = parseImport(input.text, input.mapping, input.defaultGame);
+      const parsed = parseImport(input.text, input.mapping, input.defaultGame, {
+        defaultLanguage: input.defaultLanguage,
+        sourceCurrency: input.sourceCurrency,
+      });
       if (raw.action === "preview_import")
         return NextResponse.json({
           headers: parsed.headers,

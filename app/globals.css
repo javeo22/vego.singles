@@ -2094,3 +2094,40 @@ tr:last-child td {
  .ops-title-row .button { padding:9px; font-size:11px; }
  .ops-pick { flex-wrap:wrap; }
 }
+
+/* Exact printing filters and incremental catalog results. */
+.catalog-filters {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+  margin: 0 0 24px;
+}
+.catalog-filters label {
+  display: grid;
+  gap: 7px;
+  color: var(--muted);
+  font-size: 12px;
+}
+.catalog-filters select {
+  min-width: 0;
+  width: 100%;
+  min-height: 44px;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  background: white;
+  color: var(--ink);
+  padding: 8px 10px;
+}
+.catalog-more {
+  text-align: center;
+  margin-top: 28px;
+}
+@media (max-width: 600px) {
+  .catalog-filters {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+  }
+  .catalog-filters label:first-child {
+    grid-column: 1 / -1;
+  }
+}

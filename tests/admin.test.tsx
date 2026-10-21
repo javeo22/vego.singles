@@ -246,7 +246,7 @@ test("import review preserves Japanese language and full collector number", asyn
     acquisitionCostCrc: null,
     provider: "",
     externalId: "",
-    treatment: "standard",
+    treatment: "poke ball pattern",
     kind: "single",
     errors: [],
     raw: {},
@@ -285,7 +285,22 @@ test("import review preserves Japanese language and full collector number", asyn
             row_number: 2,
             normalized,
             status: "needs_review",
-            candidates: [],
+            candidates: [
+              {
+                id: "tcgdex:sv9-106",
+                name: "Swinub",
+                setName: "Battle Partners",
+                collectorNumber: "106/100",
+                game: "pokemon",
+                language: "ja",
+                provider: "tcgdex",
+                externalId: "sv9-106",
+                imageUrl: null,
+                verified: false,
+                treatment: "standard",
+                kind: "single",
+              },
+            ],
             errors: [],
           },
         ],
@@ -307,7 +322,9 @@ test("import review preserves Japanese language and full collector number", asyn
   await user.click(
     screen.getByRole("button", { name: "Validar y previsualizar" }),
   );
-  await screen.findByText("1 filas detectadas. Las primeras 10 aparecen aquí.");
+  await screen.findByText(
+    /1 filas detectadas\. Las primeras 10 aparecen aquí\./,
+  );
   await user.click(
     screen.getByRole("button", { name: "Guardar lote para revisión" }),
   );
@@ -326,6 +343,30 @@ test("import review preserves Japanese language and full collector number", asyn
   assert.equal(p.language, "ja");
   assert.equal(p.candidate.collectorNumber, "106/100");
   assert.equal(p.candidate.name, "Swinub");
+  assert.equal(p.candidate.treatment, "poke ball pattern");
+  await user.click(screen.getByRole("button", { name: "Revisar" }));
+  await user.click(
+    screen.getByRole("button", { name: /Swinub.*Battle Partners.*106/ }),
+  );
+  assert.equal(
+    (screen.getByLabelText("Tratamiento / edición") as HTMLInputElement).value,
+    "poke ball pattern",
+  );
+  await user.type(
+    screen.getByLabelText("Evidencia / motivo"),
+    "Tratamiento confirmado físicamente",
+  );
+  await user.click(
+    screen.getByRole("button", { name: "Confirmar coincidencia" }),
+  );
+  await waitFor(() =>
+    assert.equal(sent.filter((b) => b.action === "resolve_import").length, 2),
+  );
+  assert.equal(
+    sent.filter((b) => b.action === "resolve_import")[1].payload.candidate
+      .treatment,
+    "poke ball pattern",
+  );
 });
 test("editing a final price exposes an expiry recovery action after a rejected save", async () => {
   const sent: any[] = [];

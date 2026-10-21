@@ -17,10 +17,25 @@ import {
 } from "@/lib/catalog";
 import ProductArt from "./product-art";
 import { useShop } from "./shop-provider";
+import {
+  deliveryMessage,
+  fulfillmentLabel,
+  fulfillmentMethods,
+  whatsappUrl,
+  type FulfillmentMethod,
+} from "@/lib/fulfillment";
 
 export default function CartPanel() {
-  const { cart, cartOpen, setCartOpen, changeCount, toast, dismissToast } =
-    useShop();
+  const {
+    cart,
+    cartOpen,
+    setCartOpen,
+    changeCount,
+    toast,
+    dismissToast,
+    fulfillment,
+    setFulfillment,
+  } = useShop();
   const dialog = useRef<HTMLDialogElement>(null);
   const [settings, setSettings] = useState<{
     deliveryFeeCrc: number | null;
@@ -30,7 +45,6 @@ export default function CartPanel() {
     [requestError, setRequestError] = useState("");
   const pending = useRef(false),
     intent = useRef<{ key: string; json: string } | null>(null);
-  const [fulfillment, setFulfillment] = useState("duelist");
   useEffect(() => {
     fetch("/api/store-settings")
       .then((r) => r.json())
@@ -57,14 +71,10 @@ export default function CartPanel() {
   const directCheckout = () => {
     const lines = cart.map(
       ({ item, count }) =>
-        `${count}x ${item.card_printings?.canonical_name} ${item.card_printings?.collector_number || ""} — ${formatPrice(item.approved_price_crc * count)}${item.sample ? " (referencia; confirmar precio y disponibilidad)" : stockQuantity(item) === null ? " (disponibilidad por confirmar)" : ""}`,
+        `${count}x ${item.card_printings?.canonical_name} · ${item.card_printings?.set_name || ""} · ${item.card_printings?.collector_number || ""} · ${variantLabel(item.card_printings?.language)} · ${variantLabel(item.condition)} · ${variantLabel(item.finish)}${item.treatment && item.treatment !== "standard" ? ` · ${variantLabel(item.treatment)}` : ""} — ${formatPrice(item.approved_price_crc * count)}${item.sample ? " (referencia; confirmar precio y disponibilidad)" : stockQuantity(item) === null ? " (disponibilidad por confirmar)" : ""}`,
     );
-    const text = `Hola, quiero consultar disponibilidad:\n\n${lines.join("\n")}\n\n${samples ? "Precios de referencia" : "Subtotal"}: ${formatPrice(subtotal)}\n${fulfillment === "pickup" ? "Retiro" : settings.deliveryFeeCrc === null ? "Entrega por confirmar" : `Entrega Duelist Kingdom: ${formatPrice(settings.deliveryFeeCrc)}`}\n\nEntiendo que agregar al carrito no reserva las cartas. Por favor, confirmar disponibilidad y precio final.`;
-    window.open(
-      `https://wa.me/${process.env.NEXT_PUBLIC_WHATSAPP_NUMBER || "50671141906"}?text=${encodeURIComponent(text)}`,
-      "_blank",
-      "noopener,noreferrer",
-    );
+    const text = `Hola, quiero consultar disponibilidad:\n\n${lines.join("\n")}\n\n${samples ? "Precios de referencia" : "Subtotal de cartas"}: ${formatPrice(subtotal)}\n${deliveryMessage(fulfillment)}\n\nEntiendo que agregar al carrito no reserva las cartas. Por favor, confirmar disponibilidad y precio final.`;
+    window.open(whatsappUrl(text), "_blank", "noopener,noreferrer");
   };
   const checkout = async () => {
     if (pending.current) return;
@@ -106,12 +116,14 @@ export default function CartPanel() {
             language: string;
             condition: string;
             finish: string;
+            treatment?: string;
           };
         }) =>
-          `${l.quantity}x ${l.variant.name} · ${l.variant.set} · ${l.variant.number} · ${variantLabel(l.variant.language)} · ${variantLabel(l.variant.condition)} · ${l.variant.finish} — ${formatPrice(l.price * l.quantity)}`,
+          `${l.quantity}x ${l.variant.name} · ${l.variant.set} · ${l.variant.number} · ${variantLabel(l.variant.language)} · ${variantLabel(l.variant.condition)} · ${variantLabel(l.variant.finish)}${l.variant.treatment && l.variant.treatment !== "standard" ? ` · ${variantLabel(l.variant.treatment)}` : ""} — ${formatPrice(l.price * l.quantity)}`,
       );
-      const text = `Hola, consulta ${result.number}:\n\n${lines.join("\n")}\n\nSubtotal: ${formatPrice(result.subtotal)}\nEntrega: ${formatPrice(result.delivery)}\nTotal: ${formatPrice(result.total)}\n\nPor favor confirmar disponibilidad. Esta consulta no reserva las cartas.`;
-      const url = `https://wa.me/${process.env.NEXT_PUBLIC_WHATSAPP_NUMBER || "50671141906"}?text=${encodeURIComponent(text)}`;
+      const pendingDelivery = result.deliveryPending === true;
+      const text = `Hola, consulta ${result.number}:\n\n${lines.join("\n")}\n\nSubtotal: ${formatPrice(result.subtotal)}\n${deliveryMessage(fulfillment, { pending: pendingDelivery, amountCrc: result.delivery })}\n${pendingDelivery ? "Total sin envío" : "Total"}: ${formatPrice(result.total)}\n\nPor favor confirmar disponibilidad. Esta consulta no reserva las cartas.`;
+      const url = whatsappUrl(text);
       if (popup) popup.location.replace(url);
       else window.location.assign(url);
     } catch (e) {
@@ -182,6 +194,7 @@ export default function CartPanel() {
                       )}
                       <button
                         className="remove-button"
+                        disabled={busy}
                         onClick={() => changeCount(item.id, 0)}
                       >
                         <Trash size={14} /> Quitar
@@ -193,7 +206,7 @@ export default function CartPanel() {
                         <div className="quantity-control">
                           <button
                             aria-label={`Reducir cantidad de ${item.card_printings?.canonical_name}`}
-                            disabled={count <= 1}
+                            disabled={busy || count <= 1}
                             onClick={() => changeCount(item.id, count - 1)}
                           >
                             <Minus size={15} />
@@ -201,7 +214,7 @@ export default function CartPanel() {
                           <span aria-label="Cantidad">{count}</span>
                           <button
                             aria-label={`Aumentar cantidad de ${item.card_printings?.canonical_name}`}
-                            disabled={count >= cartLimit(item)}
+                            disabled={busy || count >= cartLimit(item)}
                             onClick={() => changeCount(item.id, count + 1)}
                           >
                             <Plus size={15} />
@@ -222,26 +235,36 @@ export default function CartPanel() {
                   <span>Entrega</span>
                   <span>
                     {fulfillment === "pickup"
-                      ? "Retiro"
-                      : settings.deliveryFeeCrc === null
-                        ? "Por confirmar en WhatsApp"
-                        : formatPrice(settings.deliveryFeeCrc)}
+                      ? "Sin costo de envío"
+                      : "Por cotizar en WhatsApp"}
                   </span>
                 </div>
                 <div className="summary-total">
-                  <span>Subtotal</span>
+                  <span>
+                    {fulfillment === "pickup"
+                      ? "Total de cartas"
+                      : "Total sin envío"}
+                  </span>
                   <strong>{formatPrice(subtotal)}</strong>
                 </div>
                 <label className="ops-field">
                   Entrega
                   <select
                     value={fulfillment}
-                    onChange={(e) => setFulfillment(e.target.value)}
+                    disabled={busy}
+                    onChange={(e) => {
+                      setRequestError("");
+                      setFulfillment(e.target.value as FulfillmentMethod);
+                    }}
                   >
-                    <option value="duelist">Duelist Kingdom</option>
-                    <option value="pickup">Retiro</option>
+                    {fulfillmentMethods.map((method) => (
+                      <option key={method} value={method}>
+                        {fulfillmentLabel(method)}
+                      </option>
+                    ))}
                   </select>
                 </label>
+                <p className="small-note">{deliveryMessage(fulfillment)}</p>
                 {requestError && (
                   <>
                     <p role="alert" className="ops-error">

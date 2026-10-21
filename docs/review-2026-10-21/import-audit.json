@@ -1,0 +1,583 @@
+{
+  "rows": 1035,
+  "units": 1122,
+  "games": {
+    "magic": 700,
+    "one piece": 69,
+    "pokemon": 218,
+    "star-wars": 48
+  },
+  "kinds": {
+    "single": 1029,
+    "sealed": 6
+  },
+  "finishes": {
+    "Non-foil": 537,
+    "Foil": 287,
+    "Sealed": 6,
+    "Holofoil": 185,
+    "Reverse Holofoil": 20
+  },
+  "languages": {
+    "unknown": 1032,
+    "ja": 3
+  },
+  "sourcePriceReferences": 1035,
+  "nonstandardTreatments": 356,
+  "invalidRows": 78,
+  "issues": [
+    {
+      "row": 30,
+      "name": "Courageous Resolve Art Card",
+      "errors": [
+        "Falta número de carta"
+      ]
+    },
+    {
+      "row": 32,
+      "name": "Fell Beast’s Shriek Art Card",
+      "errors": [
+        "Falta número de carta"
+      ]
+    },
+    {
+      "row": 34,
+      "name": "Gandalf of the Secret Fire Art Card",
+      "errors": [
+        "Falta número de carta"
+      ]
+    },
+    {
+      "row": 35,
+      "name": "Olorin’s Searing Light Art Card",
+      "errors": [
+        "Falta número de carta"
+      ]
+    },
+    {
+      "row": 36,
+      "name": "Rammas Echor, Ancient Shield Art Card",
+      "errors": [
+        "Falta número de carta"
+      ]
+    },
+    {
+      "row": 37,
+      "name": "Sorcerous Squall Art Card",
+      "errors": [
+        "Falta número de carta"
+      ]
+    },
+    {
+      "row": 200,
+      "name": "Muraganda Eldrazi",
+      "errors": [
+        "Falta número de carta"
+      ]
+    },
+    {
+      "row": 374,
+      "name": "Suq'Ata Firewalker",
+      "errors": [
+        "Falta número de carta"
+      ]
+    },
+    {
+      "row": 702,
+      "name": "Arlong",
+      "errors": [
+        "Juego no compatible"
+      ]
+    },
+    {
+      "row": 703,
+      "name": "Capone\"Gang\"Bege",
+      "errors": [
+        "Juego no compatible"
+      ]
+    },
+    {
+      "row": 704,
+      "name": "Charlotte Katakuri",
+      "errors": [
+        "Juego no compatible"
+      ]
+    },
+    {
+      "row": 705,
+      "name": "Charlotte Pudding",
+      "errors": [
+        "Juego no compatible"
+      ]
+    },
+    {
+      "row": 706,
+      "name": "DON!! Card (Katakuri) (Double Pack Set Vol. 7)",
+      "errors": [
+        "Falta número de carta",
+        "Juego no compatible"
+      ]
+    },
+    {
+      "row": 707,
+      "name": "DON!! Card (Koby) (Double Pack Set Vol. 7)",
+      "errors": [
+        "Falta número de carta",
+        "Juego no compatible"
+      ]
+    },
+    {
+      "row": 708,
+      "name": "Hibari",
+      "errors": [
+        "Juego no compatible"
+      ]
+    },
+    {
+      "row": 709,
+      "name": "Hibari",
+      "errors": [
+        "Juego no compatible"
+      ]
+    },
+    {
+      "row": 710,
+      "name": "Jinbe",
+      "errors": [
+        "Juego no compatible"
+      ]
+    },
+    {
+      "row": 711,
+      "name": "Kujyaku",
+      "errors": [
+        "Juego no compatible"
+      ]
+    },
+    {
+      "row": 712,
+      "name": "Monkey.D.Luffy",
+      "errors": [
+        "Juego no compatible"
+      ]
+    },
+    {
+      "row": 713,
+      "name": "Nami",
+      "errors": [
+        "Juego no compatible"
+      ]
+    },
+    {
+      "row": 714,
+      "name": "Zeus",
+      "errors": [
+        "Juego no compatible"
+      ]
+    },
+    {
+      "row": 715,
+      "name": "DON!! Card (Manga) (Double Pack Set Volume 2)",
+      "errors": [
+        "Falta número de carta",
+        "Juego no compatible"
+      ]
+    },
+    {
+      "row": 716,
+      "name": "Gedatsu",
+      "errors": [
+        "Juego no compatible"
+      ]
+    },
+    {
+      "row": 717,
+      "name": "Kaido",
+      "errors": [
+        "Juego no compatible"
+      ]
+    },
+    {
+      "row": 718,
+      "name": "Koala",
+      "errors": [
+        "Juego no compatible"
+      ]
+    },
+    {
+      "row": 719,
+      "name": "Mansherry",
+      "errors": [
+        "Juego no compatible"
+      ]
+    },
+    {
+      "row": 720,
+      "name": "Pica",
+      "errors": [
+        "Juego no compatible"
+      ]
+    },
+    {
+      "row": 721,
+      "name": "Rebecca",
+      "errors": [
+        "Juego no compatible"
+      ]
+    },
+    {
+      "row": 722,
+      "name": "Rob Lucci",
+      "errors": [
+        "Juego no compatible"
+      ]
+    },
+    {
+      "row": 723,
+      "name": "Sabo",
+      "errors": [
+        "Juego no compatible"
+      ]
+    },
+    {
+      "row": 724,
+      "name": "Sabo",
+      "errors": [
+        "Juego no compatible"
+      ]
+    },
+    {
+      "row": 725,
+      "name": "Trafalgar Law",
+      "errors": [
+        "Juego no compatible"
+      ]
+    },
+    {
+      "row": 726,
+      "name": "Ulti",
+      "errors": [
+        "Juego no compatible"
+      ]
+    },
+    {
+      "row": 727,
+      "name": "BRAND NEW WORLD",
+      "errors": [
+        "Juego no compatible"
+      ]
+    },
+    {
+      "row": 728,
+      "name": "Nami",
+      "errors": [
+        "Juego no compatible"
+      ]
+    },
+    {
+      "row": 729,
+      "name": "Sengoku",
+      "errors": [
+        "Juego no compatible"
+      ]
+    },
+    {
+      "row": 730,
+      "name": "Yamato",
+      "errors": [
+        "Juego no compatible"
+      ]
+    },
+    {
+      "row": 731,
+      "name": "Capone\"Gang\"Bege",
+      "errors": [
+        "Juego no compatible"
+      ]
+    },
+    {
+      "row": 732,
+      "name": "Donquixote Doflamingo",
+      "errors": [
+        "Juego no compatible"
+      ]
+    },
+    {
+      "row": 733,
+      "name": "Ms. All Sunday",
+      "errors": [
+        "Juego no compatible"
+      ]
+    },
+    {
+      "row": 734,
+      "name": "Sabo",
+      "errors": [
+        "Juego no compatible"
+      ]
+    },
+    {
+      "row": 735,
+      "name": "Sugar",
+      "errors": [
+        "Juego no compatible"
+      ]
+    },
+    {
+      "row": 736,
+      "name": "Who's.Who",
+      "errors": [
+        "Juego no compatible"
+      ]
+    },
+    {
+      "row": 737,
+      "name": "Bartholomew Kuma",
+      "errors": [
+        "Juego no compatible"
+      ]
+    },
+    {
+      "row": 738,
+      "name": "Boa Hancock",
+      "errors": [
+        "Juego no compatible"
+      ]
+    },
+    {
+      "row": 739,
+      "name": "Koala",
+      "errors": [
+        "Juego no compatible"
+      ]
+    },
+    {
+      "row": 740,
+      "name": "Kuzan (SP)",
+      "errors": [
+        "Juego no compatible"
+      ]
+    },
+    {
+      "row": 741,
+      "name": "Monkey.D.Dragon",
+      "errors": [
+        "Juego no compatible"
+      ]
+    },
+    {
+      "row": 742,
+      "name": "Monkey.D.Garp",
+      "errors": [
+        "Juego no compatible"
+      ]
+    },
+    {
+      "row": 743,
+      "name": "Monkey.D.Luffy",
+      "errors": [
+        "Juego no compatible"
+      ]
+    },
+    {
+      "row": 744,
+      "name": "Perona",
+      "errors": [
+        "Juego no compatible"
+      ]
+    },
+    {
+      "row": 745,
+      "name": "Shanks",
+      "errors": [
+        "Juego no compatible"
+      ]
+    },
+    {
+      "row": 746,
+      "name": "Trafalgar Law",
+      "errors": [
+        "Juego no compatible"
+      ]
+    },
+    {
+      "row": 747,
+      "name": "Vinsmoke Reiju",
+      "errors": [
+        "Juego no compatible"
+      ]
+    },
+    {
+      "row": 748,
+      "name": "Buggy (OP10 Release Event)",
+      "errors": [
+        "Juego no compatible"
+      ]
+    },
+    {
+      "row": 749,
+      "name": "Carrot (Event Pack Vol. 6)",
+      "errors": [
+        "Juego no compatible"
+      ]
+    },
+    {
+      "row": 750,
+      "name": "DON!! Card (2nd Anniversary Tournament)",
+      "errors": [
+        "Falta número de carta",
+        "Juego no compatible"
+      ]
+    },
+    {
+      "row": 751,
+      "name": "DON!! Card (Tin Pack Set Vol. 1 -Monkey.D.Luffy-)",
+      "errors": [
+        "Falta número de carta",
+        "Juego no compatible"
+      ]
+    },
+    {
+      "row": 752,
+      "name": "DON!! Card (Young Luffy) (Devil Fruits Collection Vol. 1)",
+      "errors": [
+        "Falta número de carta",
+        "Juego no compatible"
+      ]
+    },
+    {
+      "row": 753,
+      "name": "Hongo (Winner Pack 2025 Vol. 2)",
+      "errors": [
+        "Juego no compatible"
+      ]
+    },
+    {
+      "row": 754,
+      "name": "Jinbe (Gift Collection 2023)",
+      "errors": [
+        "Juego no compatible"
+      ]
+    },
+    {
+      "row": 755,
+      "name": "Monkey.D.Luffy (2nd Anniversary Stamped Promo)",
+      "errors": [
+        "Juego no compatible"
+      ]
+    },
+    {
+      "row": 756,
+      "name": "Monkey.D.Luffy (Sealed Battle 2024 Vol. 2)",
+      "errors": [
+        "Falta número de carta",
+        "Juego no compatible"
+      ]
+    },
+    {
+      "row": 757,
+      "name": "Nico Robin (Gift Collection 2023)",
+      "errors": [
+        "Juego no compatible"
+      ]
+    },
+    {
+      "row": 758,
+      "name": "Roronoa Zoro - OP01-025 (Ultra Deck: The Three Captains)",
+      "errors": [
+        "Juego no compatible"
+      ]
+    },
+    {
+      "row": 759,
+      "name": "Roronoa Zoro (ST15 - ST20 Release Event Pack)",
+      "errors": [
+        "Juego no compatible"
+      ]
+    },
+    {
+      "row": 760,
+      "name": "Tony Tony.Chopper (Gift Collection 2023)",
+      "errors": [
+        "Juego no compatible"
+      ]
+    },
+    {
+      "row": 761,
+      "name": "Trafalgar Law (OP10 Release Event)",
+      "errors": [
+        "Juego no compatible"
+      ]
+    },
+    {
+      "row": 762,
+      "name": "Trafalgar Law (Welcome Pack Vol. 1)",
+      "errors": [
+        "Juego no compatible"
+      ]
+    },
+    {
+      "row": 763,
+      "name": "Charlotte Perospero",
+      "errors": [
+        "Juego no compatible"
+      ]
+    },
+    {
+      "row": 764,
+      "name": "Eustass \"Captain\" Kid",
+      "errors": [
+        "Juego no compatible"
+      ]
+    },
+    {
+      "row": 765,
+      "name": "Monkey.D.Luffy",
+      "errors": [
+        "Juego no compatible"
+      ]
+    },
+    {
+      "row": 766,
+      "name": "Monkey.D.Luffy",
+      "errors": [
+        "Juego no compatible"
+      ]
+    },
+    {
+      "row": 767,
+      "name": "Trafalgar Law",
+      "errors": [
+        "Juego no compatible"
+      ]
+    },
+    {
+      "row": 768,
+      "name": "Monkey.D.Luffy",
+      "errors": [
+        "Juego no compatible"
+      ]
+    },
+    {
+      "row": 769,
+      "name": "Shanks",
+      "errors": [
+        "Juego no compatible"
+      ]
+    },
+    {
+      "row": 770,
+      "name": "Uta",
+      "errors": [
+        "Juego no compatible"
+      ]
+    },
+    {
+      "row": 992,
+      "name": "Kit Fisto - Focused Jedi Master",
+      "errors": [
+        "Watchlist: confirma stock propio antes de importar"
+      ]
+    }
+  ]
+}

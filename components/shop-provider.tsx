@@ -1,6 +1,7 @@
 "use client";
 import {
   createContext,
+  useCallback,
   useContext,
   useEffect,
   useRef,
@@ -8,9 +9,23 @@ import {
   type ReactNode,
 } from "react";
 import { stockQuantity, cartLimit, type Listing } from "@/lib/catalog";
+import {
+  cartStorageKey,
+  defaultFilters,
+  readFilters,
+  writeFilters,
+  restoreCart,
+  type CatalogFilters,
+} from "@/lib/shop-state";
+import { fulfillmentMethods, type FulfillmentMethod } from "@/lib/fulfillment";
 
 export type CartLine = { item: Listing; count: number };
 type ShopState = {
+  filters: CatalogFilters;
+  updateFilters: (value: Partial<CatalogFilters>) => void;
+  registerInventory: (items: Listing[], unavailable: boolean) => void;
+  fulfillment: FulfillmentMethod;
+  setFulfillment: (value: FulfillmentMethod) => void;
   query: string;
   setQuery: (value: string) => void;
   game: string;
@@ -32,13 +47,96 @@ export function useShop() {
   return context;
 }
 export default function ShopProvider({ children }: { children: ReactNode }) {
-  const [query, setQuery] = useState("");
-  const [game, setGame] = useState("all");
-  const [kind, setKind] = useState("all");
+  const [filters, setFilters] = useState({ ...defaultFilters });
+  const [urlReady, setUrlReady] = useState(false);
+  const updateFilters = (value: Partial<CatalogFilters>) =>
+    setFilters((current) => ({ ...current, ...value }));
+  const [fulfillment, setFulfillmentState] =
+    useState<FulfillmentMethod>("delivery");
   const [cart, setCart] = useState<CartLine[]>([]);
+  const [cartReady, setCartReady] = useState(false);
+  const restored = useRef(false);
   const [cartOpen, setCartOpen] = useState(false);
   const [toast, setToast] = useState("");
   const timeout = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => {
+    const read = () => setFilters(readFilters(new URL(window.location.href)));
+    read();
+    setUrlReady(true);
+    window.addEventListener("popstate", read);
+    try {
+      const saved = window.localStorage.getItem("vego.fulfillment.v1");
+      if (fulfillmentMethods.includes(saved as FulfillmentMethod))
+        setFulfillmentState(saved as FulfillmentMethod);
+    } catch {
+      /* Storage can be disabled by the browser. */
+    }
+    return () => window.removeEventListener("popstate", read);
+  }, []);
+  useEffect(() => {
+    if (!urlReady || window.location.pathname !== "/") return;
+    const url = writeFilters(new URL(window.location.href), filters);
+    if (url.href !== window.location.href)
+      window.history.replaceState(window.history.state, "", url);
+  }, [filters, urlReady]);
+  const setFulfillment = (value: FulfillmentMethod) => {
+    setFulfillmentState(value);
+    try {
+      window.localStorage.setItem("vego.fulfillment.v1", value);
+    } catch {
+      /* Optional persistence. */
+    }
+  };
+  const registerInventory = useCallback(
+    (items: Listing[], unavailable: boolean) => {
+      if (unavailable) return;
+      if (!restored.current) {
+        restored.current = true;
+        try {
+          const result = restoreCart(
+            window.localStorage.getItem(cartStorageKey),
+            items,
+          );
+          setCart(result.lines);
+          if (result.adjusted)
+            setToast(
+              "Actualizamos tu carrito: algunas cartas cambiaron de disponibilidad.",
+            );
+        } catch {
+          /* Optional persistence. */
+        }
+        setCartReady(true);
+      } else {
+        setCart((current) =>
+          current.flatMap((line) => {
+            const item = line.item.sample
+              ? line.item
+              : items.find((item) => item.id === line.item.id);
+            return item && cartLimit(item) > 0
+              ? [{ item, count: Math.min(line.count, cartLimit(item)) }]
+              : [];
+          }),
+        );
+      }
+    },
+    [],
+  );
+  useEffect(() => {
+    if (!cartReady) return;
+    try {
+      window.localStorage.setItem(
+        cartStorageKey,
+        JSON.stringify({
+          version: 1,
+          items: cart
+            .filter((line) => !line.item.sample)
+            .map((line) => ({ id: line.item.id, count: line.count })),
+        }),
+      );
+    } catch {
+      /* Optional persistence. */
+    }
+  }, [cart, cartReady]);
   useEffect(
     () => () => {
       if (timeout.current) clearTimeout(timeout.current);
@@ -85,12 +183,18 @@ export default function ShopProvider({ children }: { children: ReactNode }) {
   return (
     <ShopContext.Provider
       value={{
-        query,
-        setQuery,
-        game,
-        setGame,
-        kind,
-        setKind,
+        filters,
+        updateFilters,
+        registerInventory,
+        fulfillment,
+        setFulfillment,
+        query: filters.query,
+        setQuery: (value) => updateFilters({ query: value }),
+        game: filters.game,
+        setGame: (value) =>
+          updateFilters({ game: value, set: "", language: "", finish: "" }),
+        kind: filters.kind,
+        setKind: (value) => updateFilters({ kind: value }),
         cart,
         add,
         changeCount,

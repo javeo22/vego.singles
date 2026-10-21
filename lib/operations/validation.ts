@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { policySchema } from "./pricing";
 import { catalogCardSchema, conditions, languages, games } from "./imports";
+import { fulfillmentMethods } from "../fulfillment";
 const id = z.string().uuid(),
   reason = z.string().trim().min(3).max(500),
   location = z.string().regex(/^[A-Z0-9_-]{1,32}$/);
@@ -45,7 +46,10 @@ export const commandSchema = z.union([
   action("set_price_fx", {
     fx: z.number().min(1).max(10000),
     observedAt: z.string().datetime(),
-    sourceUrl: z.union([url, z.literal("")]).nullable().optional(),
+    sourceUrl: z
+      .union([url, z.literal("")])
+      .nullable()
+      .optional(),
   }),
   action("resolve_import", {
     id,
@@ -148,6 +152,11 @@ export const commandSchema = z.union([
   action("enqueue", { id, kind: z.enum(["match_import", "refresh_price"]) }),
   action("retry_job", { id }),
   action("reserve_request", { id, hours: z.number().int().min(1).max(72) }),
+  action("quote_delivery", {
+    id,
+    amountCrc: z.number().int().min(0).max(100000),
+    reason,
+  }),
   action("refresh_request", { id }),
   action("cancel_request", { id, reason }),
   action("sell_request", { id }),
@@ -163,6 +172,8 @@ export const importSchema = z
     defaultGame: z.enum(games).default("pokemon"),
     reference: z.string().trim().max(120).default(""),
     mapping: z.record(z.string()).default({}),
+    defaultLanguage: z.enum([...languages, "unknown"]).default("unknown"),
+    sourceCurrency: z.enum(["USD", "CRC", "unknown"]).default("unknown"),
   })
   .strict();
 export const inquirySchema = z
@@ -176,7 +187,7 @@ export const inquirySchema = z
       )
       .min(1)
       .max(30),
-    fulfillment: z.enum(["duelist", "pickup"]),
+    fulfillment: z.enum(fulfillmentMethods),
     note: z.string().max(500).default(""),
   })
   .strict();

@@ -9,6 +9,7 @@
     "lint": "eslint .",
     "test": "tsx --tsconfig tests/tsconfig.json --test tests/*.test.ts tests/*.test.tsx",
     "typecheck": "tsc --noEmit",
+    "review:import": "tsx scripts/review-import.ts",
     "admin:set-password": "tsx --env-file-if-exists=.env.local scripts/set-admin-password.ts"
   },
   "dependencies": {
