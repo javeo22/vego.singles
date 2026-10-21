@@ -28,6 +28,7 @@ import {
 export default function CartPanel() {
   const {
     cart,
+    cartLoading,
     cartOpen,
     setCartOpen,
     changeCount,
@@ -164,7 +165,11 @@ export default function CartPanel() {
               <X size={24} />
             </button>
           </div>
-          {!cart.length ? (
+          {cartLoading ? (
+            <div className="cart-empty" role="status">
+              Recuperando tu carrito…
+            </div>
+          ) : !cart.length ? (
             <div className="cart-empty">
               <ShoppingCart size={48} weight="light" />
               <h3>Tu carrito está vacío.</h3>

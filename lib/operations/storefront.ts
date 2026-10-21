@@ -38,3 +38,21 @@ export async function readStorefront(db: SupabaseClient) {
   }
   return { listings: rows, unavailable: false };
 }
+
+export async function readCartInventory(db: SupabaseClient, ids: string[]) {
+  for (const source of ["storefront_inventory", "public_listings"]) {
+    const { data, error } = await db
+      .from(source)
+      .select("*")
+      .in("id", ids)
+      .abortSignal(AbortSignal.timeout(8000));
+    if (!error) return (data || []).map(normalizePublicListing);
+    if (
+      source === "storefront_inventory" &&
+      ["42P01", "PGRST205", "PGRST204"].includes(error.code)
+    )
+      continue;
+    throw new Error("Public inventory unavailable");
+  }
+  throw new Error("Public inventory unavailable");
+}

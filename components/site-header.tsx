@@ -27,6 +27,7 @@ export default function SiteHeader() {
     kind,
     setKind,
     cart,
+    cartLoading,
     setCartOpen,
     updateFilters,
   } = useShop();
@@ -91,7 +92,11 @@ export default function SiteHeader() {
             <button className="cart-trigger" onClick={() => setCartOpen(true)}>
               <ShoppingCart size={27} weight="light" />
               <span>
-                Carrito ({cart.reduce((n, line) => n + line.count, 0)})
+                Carrito (
+                {cartLoading
+                  ? "…"
+                  : cart.reduce((n, line) => n + line.count, 0)}
+                )
               </span>
             </button>
           </div>

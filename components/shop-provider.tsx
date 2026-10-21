@@ -33,6 +33,7 @@ type ShopState = {
   kind: string;
   setKind: (value: string) => void;
   cart: CartLine[];
+  cartLoading: boolean;
   add: (item: Listing) => void;
   changeCount: (id: string, count: number) => void;
   cartOpen: boolean;
@@ -55,6 +56,7 @@ export default function ShopProvider({ children }: { children: ReactNode }) {
     useState<FulfillmentMethod>("delivery");
   const [cart, setCart] = useState<CartLine[]>([]);
   const [cartReady, setCartReady] = useState(false);
+  const [cartLoading, setCartLoading] = useState(true);
   const restored = useRef(false);
   const [cartOpen, setCartOpen] = useState(false);
   const [toast, setToast] = useState("");
@@ -90,6 +92,7 @@ export default function ShopProvider({ children }: { children: ReactNode }) {
   const registerInventory = useCallback(
     (items: Listing[], unavailable: boolean) => {
       if (unavailable) return;
+      setCartLoading(false);
       if (!restored.current) {
         restored.current = true;
         try {
@@ -122,6 +125,51 @@ export default function ShopProvider({ children }: { children: ReactNode }) {
     [],
   );
   useEffect(() => {
+    if (restored.current) return;
+    const controller = new AbortController();
+    try {
+      const saved = JSON.parse(
+        window.localStorage.getItem(cartStorageKey) || "null",
+      );
+      const ids =
+        saved?.version === 1 && Array.isArray(saved.items)
+          ? saved.items
+              .map((line: { id?: unknown }) => line?.id)
+              .filter(
+                (id: unknown) =>
+                  typeof id === "string" && /^[0-9a-f-]{36}$/i.test(id),
+              )
+              .slice(0, 30)
+          : [];
+      if (!ids.length) {
+        registerInventory([], false);
+        return;
+      }
+      fetch(`/api/cart-items?ids=${encodeURIComponent(ids.join(","))}`, {
+        signal: controller.signal,
+        cache: "no-store",
+      })
+        .then(async (response) => {
+          if (!response.ok) throw new Error();
+          const result = await response.json();
+          if (!Array.isArray(result.listings)) throw new Error();
+          if (!controller.signal.aborted && !restored.current)
+            registerInventory(result.listings, false);
+        })
+        .catch(() => {
+          if (!controller.signal.aborted && !restored.current) {
+            setCartLoading(false);
+            setToast(
+              "Tu selección sigue guardada. Vuelve al catálogo para actualizar el carrito.",
+            );
+          }
+        });
+    } catch {
+      setCartLoading(false);
+    }
+    return () => controller.abort();
+  }, [registerInventory]);
+  useEffect(() => {
     if (!cartReady) return;
     try {
       window.localStorage.setItem(
@@ -146,7 +194,9 @@ export default function ShopProvider({ children }: { children: ReactNode }) {
   const add = (item: Listing) => {
     if (stockQuantity(item) === 0) return;
     const current = cart.find((line) => line.item.id === item.id);
-    if (current && current.count >= cartLimit(item)) {
+    if (!current && cart.length >= 30) {
+      setToast("Puedes consultar hasta 30 cartas distintas por pedido.");
+    } else if (current && current.count >= cartLimit(item)) {
       setToast(
         item.sample
           ? "Esta carta de referencia ya está en tu carrito."
@@ -196,6 +246,7 @@ export default function ShopProvider({ children }: { children: ReactNode }) {
         kind: filters.kind,
         setKind: (value) => updateFilters({ kind: value }),
         cart,
+        cartLoading,
         add,
         changeCount,
         cartOpen,

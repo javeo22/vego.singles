@@ -67,6 +67,71 @@ afterEach(() => {
   document.body.style.overflow = "";
 });
 
+test("account-page cart recovery fetches current public inventory without a catalog component", async () => {
+  const id = crypto.randomUUID();
+  dom.window.localStorage.setItem(
+    "vego.cart.v1",
+    JSON.stringify({ version: 1, items: [{ id, count: 1 }] }),
+  );
+  globalThis.fetch = (async (input) => {
+    const url = String(input);
+    return new Response(
+      JSON.stringify(
+        url.startsWith("/api/cart-items")
+          ? {
+              listings: [
+                {
+                  ...displayExamples[0],
+                  id,
+                  sample: false,
+                  approved_price_crc: 9000,
+                },
+              ],
+            }
+          : { requestsEnabled: false },
+      ),
+    );
+  }) as typeof fetch;
+  const user = userEvent.setup({ document: dom.window.document });
+  render(
+    <ShopProvider>
+      <Controls />
+      <CartPanel />
+    </ShopProvider>,
+  );
+  await user.click(screen.getByRole("button", { name: "Open cart" }));
+  await waitFor(() =>
+    assert.ok(within(screen.getByRole("dialog")).getByText("Charizard ex")),
+  );
+  assert.equal(
+    within(screen.getByRole("dialog")).getAllByText("₡9,000").length,
+    3,
+  );
+});
+
+test("a failed cart refresh keeps the saved selection for recovery", async () => {
+  const saved = JSON.stringify({
+    version: 1,
+    items: [{ id: crypto.randomUUID(), count: 1 }],
+  });
+  dom.window.localStorage.setItem("vego.cart.v1", saved);
+  globalThis.fetch = (async () =>
+    new Response("{}", { status: 503 })) as typeof fetch;
+  render(
+    <ShopProvider>
+      <Controls />
+      <CartPanel />
+    </ShopProvider>,
+  );
+  await waitFor(() =>
+    assert.match(
+      screen.getByRole("status").textContent || "",
+      /selección sigue guardada/,
+    ),
+  );
+  assert.equal(dom.window.localStorage.getItem("vego.cart.v1"), saved);
+});
+
 test("saved cart uses current prices, clamps stock, drops unavailable cards and restores delivery choice", async () => {
   const fixture = {
     ...displayExamples[0],
