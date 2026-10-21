@@ -318,7 +318,6 @@ test("import review preserves Japanese language and full collector number", asyn
     (
       screen.getByRole("option", {
         name: "One Piece",
-        exact: true,
       }) as HTMLOptionElement
     ).value,
     "one-piece",
