@@ -19,6 +19,11 @@ import {
 import ProductArt from "./product-art";
 import { useShop } from "./shop-provider";
 import { defaultFilters } from "@/lib/shop-state";
+const productTypes = [
+  ["all", "Todos"],
+  ["single", "Singles"],
+  ["sealed", "Sellados"],
+] as const;
 
 export default function Catalog({
   initial,
@@ -33,19 +38,18 @@ export default function Catalog({
     kind,
     filters,
     updateFilters,
+    selectedProductId,
+    openProduct,
+    closeProduct: closeDetail,
     registerInventory,
     add,
     setCartOpen,
   } = useShop();
-  const tab = kind === "sealed" ? "sealed" : "featured";
-  const setTab = (value: string) =>
-    updateFilters({ kind: value === "sealed" ? "sealed" : "all" });
   const [limit, setLimit] = useState(24);
-  const [selected, setSelected] = useState<Listing | null>(null);
   const detail = useRef<HTMLDialogElement>(null);
-  const pushedDetail = useRef(false);
   const isDisplay = initial.length === 0;
   const source = isDisplay ? displayExamples : initial;
+  const selected = source.find((item) => item.id === selectedProductId) || null;
   const active = Boolean(
     query ||
     game !== "all" ||
@@ -59,45 +63,39 @@ export default function Catalog({
     [initial, unavailable, registerInventory],
   );
   useEffect(() => setLimit(24), [filters]);
-  useEffect(() => {
-    const read = () => {
-      const id = new URL(window.location.href).searchParams.get("card");
-      setSelected(source.find((item) => item.id === id) || null);
-      pushedDetail.current = false;
-    };
-    read();
-    window.addEventListener("popstate", read);
-    return () => window.removeEventListener("popstate", read);
-  }, [source]);
-  const openDetail = (item: Listing) => {
-    const url = new URL(window.location.href);
-    url.searchParams.set("card", item.id);
-    window.history.pushState(window.history.state, "", url);
-    pushedDetail.current = true;
-    setSelected(item);
-  };
-  const closeDetail = () => {
-    if (!new URL(window.location.href).searchParams.has("card")) return;
-    const url = new URL(window.location.href);
-    url.searchParams.delete("card");
-    if (pushedDetail.current) window.history.back();
-    else window.history.replaceState(window.history.state, "", url);
-    pushedDetail.current = false;
-    setSelected(null);
-  };
-  const scope = source.filter(
+  const searchScope = source.filter(
     (item) =>
       item.card_printings &&
-      (game === "all" || item.card_printings.game === game) &&
-      (kind === "all" || (item.kind || "single") === kind),
+      (kind === "all" || (item.kind || "single") === kind) &&
+      `${item.card_printings.canonical_name} ${item.card_printings.set_name} ${item.card_printings.collector_number}`
+        .toLowerCase()
+        .includes(query.toLowerCase().trim()),
+  );
+  const scope = searchScope.filter(
+    (item) => game === "all" || item.card_printings?.game === game,
   );
   const options = (field: "set" | "language" | "finish") =>
     [
       ...new Set(
         scope
+          .filter(
+            (item) =>
+              (field === "set" ||
+                !filters.set ||
+                item.card_printings!.set_name === filters.set) &&
+              (field === "language" ||
+                !filters.language ||
+                variantLabel(item.card_printings!.language) ===
+                  filters.language) &&
+              (field === "finish" ||
+                !filters.finish ||
+                variantLabel(item.finish) === filters.finish),
+          )
           .map((item) =>
             field === "finish"
-              ? variantLabel(item.finish)
+              ? item.kind === "sealed"
+                ? ""
+                : variantLabel(item.finish)
               : field === "set"
                 ? item.card_printings!.set_name
                 : variantLabel(item.card_printings!.language),
@@ -143,40 +141,35 @@ export default function Catalog({
         <div
           className="display-tabs"
           role="tablist"
-          aria-label="Colección del catálogo"
+          aria-label="Tipo de producto"
         >
-          <button
-            id="featured-tab"
-            role="tab"
-            aria-selected={tab === "featured"}
-            aria-controls="display-products"
-            tabIndex={tab === "featured" ? 0 : -1}
-            onClick={() => setTab("featured")}
-            onKeyDown={(event) => {
-              if (["ArrowRight", "ArrowLeft"].includes(event.key)) {
-                setTab("sealed");
-                document.getElementById("sealed-tab")?.focus();
-              }
-            }}
-          >
-            Destacadas
-          </button>
-          <button
-            id="sealed-tab"
-            role="tab"
-            aria-selected={tab === "sealed"}
-            aria-controls="display-products"
-            tabIndex={tab === "sealed" ? 0 : -1}
-            onClick={() => setTab("sealed")}
-            onKeyDown={(event) => {
-              if (["ArrowRight", "ArrowLeft"].includes(event.key)) {
-                setTab("featured");
-                document.getElementById("featured-tab")?.focus();
-              }
-            }}
-          >
-            Productos sellados
-          </button>
+          {productTypes.map(([value, label], index) => (
+            <button
+              key={value}
+              id={`${value}-tab`}
+              role="tab"
+              aria-selected={kind === value}
+              aria-controls="display-products"
+              tabIndex={kind === value ? 0 : -1}
+              onClick={() => updateFilters({ kind: value })}
+              onKeyDown={(event) => {
+                if (["ArrowRight", "ArrowLeft"].includes(event.key)) {
+                  event.preventDefault();
+                  const next =
+                    productTypes[
+                      (index +
+                        (event.key === "ArrowRight" ? 1 : -1) +
+                        productTypes.length) %
+                        productTypes.length
+                    ][0];
+                  updateFilters({ kind: next });
+                  document.getElementById(`${next}-tab`)?.focus();
+                }
+              }}
+            >
+              {label}
+            </button>
+          ))}
         </div>
         <label className="catalog-order">
           Precio
@@ -189,54 +182,83 @@ export default function Catalog({
             <option value="desc">Mayor a menor</option>
           </select>
         </label>
-        <button
-          className="view-all"
-          onClick={() =>
-            updateFilters({
-              ...defaultFilters,
-              order: filters.order,
-              all: !filters.all,
-            })
-          }
-        >
-          {filters.all ? "Ver destacadas" : "Ver todo"}
-          <ArrowRight size={21} />
-        </button>
+        {!active && !filters.all && (
+          <button
+            className="view-all"
+            onClick={() => updateFilters({ all: true })}
+          >
+            Ver todo
+            <ArrowRight size={21} />
+          </button>
+        )}
       </div>
-      <div className="catalog-filters" aria-label="Filtros del catálogo">
+      <div
+        className="catalog-filters"
+        data-kind={kind}
+        aria-label="Filtros del catálogo"
+      >
+        <label>
+          TCG
+          <select
+            value={game}
+            onChange={(event) =>
+              updateFilters({ game: event.target.value, all: true })
+            }
+          >
+            <option value="all">Todos los TCG</option>
+            {Object.entries(gameNames).map(([value, label]) => {
+              const count = searchScope.filter(
+                (item) => item.card_printings?.game === value,
+              ).length;
+              return (
+                <option value={value} key={value} disabled={!count}>
+                  {label} ({count})
+                </option>
+              );
+            })}
+          </select>
+        </label>
         {(
           [
             ["set", "Set"],
             ["language", "Idioma"],
             ["finish", "Acabado"],
           ] as const
-        ).map(([field, label]) => (
-          <label key={field}>
-            {label}
-            <select
-              value={filters[field]}
-              onChange={(event) =>
-                updateFilters({ [field]: event.target.value })
-              }
-            >
-              <option value="">
-                {field === "set"
-                  ? "Todos los sets"
-                  : field === "language"
-                    ? "Todos los idiomas"
-                    : "Todos los acabados"}
-              </option>
-              {filters[field] && !options(field).includes(filters[field]) && (
-                <option value={filters[field]}>{filters[field]}</option>
-              )}
-              {options(field).map((value) => (
-                <option key={value} value={value}>
-                  {value}
+        )
+          .filter(([field]) => kind !== "sealed" || field !== "finish")
+          .map(([field, label]) => (
+            <label key={field}>
+              {label}
+              <select
+                value={filters[field]}
+                disabled={field === "set" && game === "all" && !filters.set}
+                onChange={(event) =>
+                  updateFilters({ [field]: event.target.value })
+                }
+              >
+                <option value="">
+                  {field === "set"
+                    ? game === "all"
+                      ? "Selecciona un TCG"
+                      : "Todos los sets"
+                    : field === "language"
+                      ? "Todos los idiomas"
+                      : "Todos los acabados"}
                 </option>
-              ))}
-            </select>
-          </label>
-        ))}
+                {filters[field] && !options(field).includes(filters[field]) && (
+                  <option value={filters[field]}>{filters[field]}</option>
+                )}
+                {(field === "set" && game === "all" && !filters.set
+                  ? []
+                  : options(field)
+                ).map((value) => (
+                  <option key={value} value={value}>
+                    {value}
+                  </option>
+                ))}
+              </select>
+            </label>
+          ))}
       </div>
       {(active || filters.all) && (
         <div className="filter-summary">
@@ -260,19 +282,26 @@ export default function Catalog({
         className="product-grid"
         id="display-products"
         role="tabpanel"
-        aria-labelledby={tab === "featured" ? "featured-tab" : "sealed-tab"}
+        aria-labelledby={`${kind}-tab`}
       >
         {shown.map((item) => (
-          <article className="product" key={item.id}>
+          <article
+            className="product"
+            data-kind={item.kind || "single"}
+            key={item.id}
+          >
             <button
               className="product-art-button"
               aria-label={`Ver ${item.card_printings?.canonical_name}`}
-              onClick={() => openDetail(item)}
+              onClick={() => openProduct(item.id)}
             >
               <ProductArt item={item} />
             </button>
             <div className="product-body">
-              <button className="product-name" onClick={() => openDetail(item)}>
+              <button
+                className="product-name"
+                onClick={() => openProduct(item.id)}
+              >
                 {item.card_printings?.canonical_name}
               </button>
               <div className="product-meta">
@@ -281,15 +310,18 @@ export default function Catalog({
                     item.card_printings?.game}
                 </span>
                 <span>{item.card_printings?.set_name}</span>
+                {item.card_printings?.collector_number && (
+                  <span>#{item.card_printings.collector_number}</span>
+                )}
                 <span className="product-condition">
                   {item.kind === "sealed"
                     ? "Producto sellado"
-                    : variantLabel(item.condition)}
+                    : `${variantLabel(item.condition)}${item.finish ? ` · ${variantLabel(item.finish)}` : ""}`}
                 </span>
               </div>
-              {item.card_printings?.language === "unknown" && (
+              {languageLabel(item.card_printings?.language) !== "Inglés" && (
                 <span className="product-language-pending">
-                  Idioma por confirmar
+                  {languageLabel(item.card_printings?.language)}
                 </span>
               )}
               {stockQuantity(item) === null && (

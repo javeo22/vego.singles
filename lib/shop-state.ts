@@ -12,6 +12,19 @@ export const defaultFilters = {
   all: false,
 };
 export type CatalogFilters = typeof defaultFilters;
+export function changeFilters(
+  current: CatalogFilters,
+  value: Partial<CatalogFilters>,
+): CatalogFilters {
+  const scopeChanged =
+    (value.game !== undefined && value.game !== current.game) ||
+    (value.kind !== undefined && value.kind !== current.kind);
+  return {
+    ...current,
+    ...(scopeChanged ? { set: "", language: "", finish: "" } : {}),
+    ...value,
+  };
+}
 const parameters = {
   query: "q",
   game: "game",
@@ -31,6 +44,7 @@ export function readFilters(url: URL): CatalogFilters {
   }
   if (!(result.game in gameNames)) result.game = "all";
   if (!["single", "sealed"].includes(result.kind)) result.kind = "all";
+  if (result.kind === "sealed") result.finish = "";
   if (result.order !== "asc") result.order = "desc";
   result.all = url.searchParams.get("all") === "1";
   return result;

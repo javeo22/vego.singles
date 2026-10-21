@@ -12,6 +12,7 @@ import { stockQuantity, cartLimit, type Listing } from "@/lib/catalog";
 import {
   cartStorageKey,
   defaultFilters,
+  changeFilters,
   readFilters,
   writeFilters,
   restoreCart,
@@ -23,6 +24,9 @@ export type CartLine = { item: Listing; count: number };
 type ShopState = {
   filters: CatalogFilters;
   updateFilters: (value: Partial<CatalogFilters>) => void;
+  selectedProductId: string | null;
+  openProduct: (id: string) => void;
+  closeProduct: () => void;
   registerInventory: (items: Listing[], unavailable: boolean) => void;
   fulfillment: FulfillmentMethod;
   setFulfillment: (value: FulfillmentMethod) => void;
@@ -51,7 +55,33 @@ export default function ShopProvider({ children }: { children: ReactNode }) {
   const [filters, setFilters] = useState({ ...defaultFilters });
   const [urlReady, setUrlReady] = useState(false);
   const updateFilters = (value: Partial<CatalogFilters>) =>
-    setFilters((current) => ({ ...current, ...value }));
+    setFilters((current) => changeFilters(current, value));
+  const [selectedProductId, setSelectedProductId] = useState<string | null>(
+    null,
+  );
+  const productId = useRef<string | null>(null);
+  const pushedProduct = useRef(false);
+  const openProduct = (id: string) => {
+    const url = new URL(window.location.href);
+    if (url.searchParams.get("card") !== id) {
+      url.searchParams.set("card", id);
+      window.history.pushState(window.history.state, "", url);
+      pushedProduct.current = true;
+    }
+    productId.current = id;
+    setSelectedProductId(id);
+  };
+  const closeProduct = () => {
+    if (!productId.current) return;
+    productId.current = null;
+    setSelectedProductId(null);
+    const url = new URL(window.location.href);
+    if (!url.searchParams.has("card")) return;
+    url.searchParams.delete("card");
+    if (pushedProduct.current) window.history.back();
+    else window.history.replaceState(window.history.state, "", url);
+    pushedProduct.current = false;
+  };
   const [fulfillment, setFulfillmentState] =
     useState<FulfillmentMethod>("delivery");
   const [cart, setCart] = useState<CartLine[]>([]);
@@ -62,7 +92,13 @@ export default function ShopProvider({ children }: { children: ReactNode }) {
   const [toast, setToast] = useState("");
   const timeout = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(() => {
-    const read = () => setFilters(readFilters(new URL(window.location.href)));
+    const read = () => {
+      const url = new URL(window.location.href);
+      setFilters(readFilters(url));
+      productId.current = url.searchParams.get("card");
+      setSelectedProductId(productId.current);
+      pushedProduct.current = false;
+    };
     read();
     setUrlReady(true);
     window.addEventListener("popstate", read);
@@ -235,6 +271,9 @@ export default function ShopProvider({ children }: { children: ReactNode }) {
       value={{
         filters,
         updateFilters,
+        selectedProductId,
+        openProduct,
+        closeProduct,
         registerInventory,
         fulfillment,
         setFulfillment,

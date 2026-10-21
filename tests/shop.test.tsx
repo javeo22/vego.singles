@@ -250,9 +250,9 @@ test("catalog search filters by card and reset restores the display", async () =
   );
 });
 
-test("sealed collection isolates sealed products and keyboard returns to featured", async () => {
+test("product-type tabs separate singles and sealed products with keyboard navigation", async () => {
   const user = shop();
-  await user.click(screen.getByRole("tab", { name: "Productos sellados" }));
+  await user.click(screen.getByRole("tab", { name: "Sellados" }));
   assert.equal(
     within(screen.getByRole("tabpanel")).getAllByRole("article").length,
     1,
@@ -263,9 +263,16 @@ test("sealed collection isolates sealed products and keyboard returns to feature
   );
   await user.keyboard("{ArrowLeft}");
   assert.equal(
-    screen
-      .getByRole("tab", { name: "Destacadas" })
-      .getAttribute("aria-selected"),
+    screen.getByRole("tab", { name: "Singles" }).getAttribute("aria-selected"),
+    "true",
+  );
+  assert.doesNotMatch(
+    screen.getByRole("tabpanel").textContent || "",
+    /Spark of Rebellion/,
+  );
+  await user.keyboard("{ArrowLeft}");
+  assert.equal(
+    screen.getByRole("tab", { name: "Todos" }).getAttribute("aria-selected"),
     "true",
   );
 });
@@ -497,7 +504,7 @@ test("confirmed zero stock stays disabled while numeric API stock enables adding
   assert.equal(within(cart).getAllByText("₡5,000").length, 3);
 });
 
-test("home showcase features the most expensive cards and opens a filtered catalog", async () => {
+test("home showcase opens the exact product without changing search or catalog filters", async () => {
   const user = userEvent.setup({ document: dom.window.document });
   const cards = [
     ...displayExamples,
@@ -528,9 +535,9 @@ test("home showcase features the most expensive cards and opens a filtered catal
         .getAttribute("aria-label"),
     );
   assert.deepEqual(names, [
-    "Ver Charizard ex en el catálogo",
-    "Ver Stitch — Carefree Surfer en el catálogo",
-    "Ver Sol Ring en el catálogo",
+    "Ver detalles de Charizard ex",
+    "Ver detalles de Stitch — Carefree Surfer",
+    "Ver detalles de Sol Ring",
   ]);
   assert.equal(within(showcase).queryByText("Carta agotada"), null);
   assert.equal(
@@ -539,13 +546,18 @@ test("home showcase features the most expensive cards and opens a filtered catal
   );
   await user.click(
     within(showcase).getByRole("button", {
-      name: "Ver Charizard ex en el catálogo",
+      name: "Ver detalles de Charizard ex",
     }),
   );
-  assert.equal(screen.queryByRole("region", { name: "En vitrina" }), null);
-  const products = screen.getByRole("tabpanel");
-  assert.equal(within(products).getAllByRole("article").length, 1);
-  assert.ok(within(products).getByRole("button", { name: "Charizard ex" }));
+  assert.ok(screen.getByRole("dialog", { name: "Charizard ex" }));
+  const url = new URL(dom.window.location.href);
+  assert.equal(url.searchParams.get("card"), displayExamples[0].id);
+  assert.equal(url.searchParams.has("q"), false);
+  assert.equal(url.searchParams.has("game"), false);
+  assert.equal(
+    within(screen.getByRole("tabpanel")).getAllByRole("article").length,
+    4,
+  );
 });
 
 test("home display remains distinct when every listed card is out of stock", () => {
@@ -647,4 +659,199 @@ test("saved WhatsApp inquiry uses server totals and retains its key after a fail
   assert.doesNotMatch(message, /Duelist Kingdom|Entrega: ₡0/);
   assert.match(message, /199/);
   assert.match(message, /no reserva/);
+});
+
+test("TCG filters keep the search and offer only that game's matching sets and finishes", async () => {
+  const rows = displayExamples.slice(0, 2).map((item, index) => ({
+    ...item,
+    card_printings: {
+      ...item.card_printings!,
+      canonical_name: "Shared name",
+      set_name: index ? "Magic Set" : "Pokemon Set",
+    },
+  }));
+  const user = shop(rows);
+  assert.equal(
+    (screen.getByLabelText("Set") as HTMLSelectElement).disabled,
+    true,
+  );
+  await user.type(screen.getByLabelText("Test search"), "Shared");
+  await user.selectOptions(screen.getByLabelText("TCG"), "pokemon");
+  assert.equal(
+    (screen.getByLabelText("Set") as HTMLSelectElement).disabled,
+    false,
+  );
+  assert.deepEqual(
+    Array.from((screen.getByLabelText("Set") as HTMLSelectElement).options).map(
+      (option) => option.value,
+    ),
+    ["", "Pokemon Set"],
+  );
+  await user.selectOptions(screen.getByLabelText("Set"), "Pokemon Set");
+  await user.selectOptions(screen.getByLabelText("Acabado"), "Holo");
+  await user.selectOptions(screen.getByLabelText("TCG"), "magic");
+  assert.equal((screen.getByLabelText("Set") as HTMLSelectElement).value, "");
+  assert.equal(
+    (screen.getByLabelText("Acabado") as HTMLSelectElement).value,
+    "",
+  );
+  assert.deepEqual(
+    Array.from((screen.getByLabelText("Set") as HTMLSelectElement).options).map(
+      (option) => option.value,
+    ),
+    ["", "Magic Set"],
+  );
+  assert.deepEqual(
+    Array.from(
+      (screen.getByLabelText("Acabado") as HTMLSelectElement).options,
+    ).map((option) => option.value),
+    ["", "Sin foil"],
+  );
+  assert.equal(
+    (screen.getByLabelText("Test search") as HTMLInputElement).value,
+    "Shared",
+  );
+  assert.equal(
+    within(screen.getByRole("tabpanel")).getAllByRole("article").length,
+    1,
+  );
+  assert.equal(new URL(window.location.href).searchParams.get("game"), "magic");
+});
+
+test("switching to sealed clears incompatible printing filters and hides card finishes", async () => {
+  const box = {
+    ...displayExamples[3],
+    id: "magic-box",
+    card_printings: {
+      ...displayExamples[3].card_printings!,
+      game: "magic",
+      canonical_name: "Magic Booster Box",
+      set_name: "Box Set",
+    },
+  };
+  const user = shop([...displayExamples, box]);
+  await user.selectOptions(screen.getByLabelText("TCG"), "magic");
+  await user.selectOptions(screen.getByLabelText("Set"), "Commander Masters");
+  await user.selectOptions(screen.getByLabelText("Acabado"), "Sin foil");
+  await user.click(screen.getByRole("tab", { name: "Sellados" }));
+  assert.equal(screen.queryByLabelText("Acabado") === null, true);
+  assert.equal((screen.getByLabelText("Set") as HTMLSelectElement).value, "");
+  assert.match(
+    screen.getByRole("tabpanel").textContent || "",
+    /Magic Booster Box/,
+  );
+  assert.doesNotMatch(
+    screen.getByRole("tabpanel").textContent || "",
+    /Sol Ring|Charizard/,
+  );
+  assert.equal(new URL(window.location.href).searchParams.has("finish"), false);
+});
+
+test("showcase selection distinguishes two printings with the same name", async () => {
+  const cards = displayExamples.slice(0, 2).map((item, index) => ({
+    ...item,
+    card_printings: {
+      ...item.card_printings!,
+      canonical_name: "Same name",
+      set_name: index ? "Second printing" : "First printing",
+    },
+  }));
+  const user = userEvent.setup({ document: dom.window.document });
+  render(
+    <ShopProvider>
+      <HomeShowcase initial={cards} />
+      <Catalog initial={cards} />
+    </ShopProvider>,
+  );
+  const article = within(screen.getByRole("region", { name: "En vitrina" }))
+    .getAllByRole("article")
+    .find((element) => element.textContent?.includes("Second printing"))!;
+  await user.click(
+    within(article).getByRole("button", { name: "Ver detalles de Same name" }),
+  );
+  assert.ok(
+    within(screen.getByRole("dialog", { name: "Same name" })).getByText(
+      "Second printing",
+    ),
+  );
+  assert.equal(
+    new URL(window.location.href).searchParams.get("card"),
+    cards[1].id,
+  );
+  assert.equal(new URL(window.location.href).searchParams.has("q"), false);
+});
+
+test("closing and browser Back/Forward restore the catalog filters and selected product", async () => {
+  dom.window.history.replaceState(
+    null,
+    "",
+    "/?all=1&game=magic&set=Commander+Masters",
+  );
+  const user = shop();
+  await user.click(screen.getByRole("button", { name: "Ver Sol Ring" }));
+  await user.click(
+    within(screen.getByRole("dialog", { name: "Sol Ring" })).getByRole(
+      "button",
+      { name: "Cerrar detalles de la carta" },
+    ),
+  );
+  await waitFor(() =>
+    assert.equal(new URL(window.location.href).searchParams.has("card"), false),
+  );
+  assert.equal(new URL(window.location.href).searchParams.get("game"), "magic");
+  assert.equal(
+    new URL(window.location.href).searchParams.get("set"),
+    "Commander Masters",
+  );
+  dom.window.history.forward();
+  await screen.findByRole("dialog", { name: "Sol Ring" });
+  assert.equal(
+    new URL(window.location.href).searchParams.get("card"),
+    "display-sol-ring",
+  );
+  dom.window.history.back();
+  await waitFor(() =>
+    assert.equal(
+      screen.queryByRole("dialog", { name: "Sol Ring" }) === null,
+      true,
+    ),
+  );
+  assert.equal(
+    (screen.getByLabelText("Set") as HTMLSelectElement).value,
+    "Commander Masters",
+  );
+});
+
+test("language and finish choices follow the selected TCG set", async () => {
+  const cards = [
+    displayExamples[0],
+    {
+      ...displayExamples[0],
+      id: "other-set",
+      finish: "reverse_holofoil",
+      card_printings: {
+        ...displayExamples[0].card_printings!,
+        set_name: "Other set",
+        language: "ja",
+      },
+    },
+  ];
+  const user = shop(cards);
+  await user.selectOptions(screen.getByLabelText("TCG"), "pokemon");
+  await user.selectOptions(
+    screen.getByLabelText("Set"),
+    "Scarlet & Violet 151",
+  );
+  assert.deepEqual(
+    Array.from(
+      (screen.getByLabelText("Idioma") as HTMLSelectElement).options,
+    ).map((option) => option.value),
+    ["", "Inglés"],
+  );
+  assert.deepEqual(
+    Array.from(
+      (screen.getByLabelText("Acabado") as HTMLSelectElement).options,
+    ).map((option) => option.value),
+    ["", "Holo"],
+  );
 });

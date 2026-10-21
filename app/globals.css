@@ -385,26 +385,44 @@ h3 {
 .product-grid {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 30px;
+  gap: 20px;
 }
 .product {
-  display: grid;
-  grid-template-columns: minmax(80px, 0.93fr) minmax(0, 1fr);
-  gap: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
   min-width: 0;
+  padding: 16px;
+  background: #fff;
+  border: 1px solid #dedee4;
+  border-radius: 12px;
+  box-shadow: 0 2px 5px #1b1b1e05;
+}
+.product:hover,
+.product:focus-within {
+  border-color: #a9a9b4;
 }
 .product-art-button {
   width: 100%;
-  padding: 0;
-  background: none;
+  background: #f7f7f9;
   border: 0;
   align-self: flex-start;
   display: flex;
   align-items: center;
   justify-content: center;
-  min-height: 170px;
-  border-radius: 5px;
+  height: 240px;
+  min-height: 0;
+  padding: 10px;
+  border-radius: 7px;
   transition: transform 0.2s;
+}
+.product-art-button .product-image {
+  max-height: 220px;
+}
+.product-art-button .reference-art {
+  height: 220px;
+  width: auto;
+  max-width: 100%;
 }
 .product-art-button:hover {
   transform: translateY(-3px);
@@ -449,18 +467,21 @@ h3 {
   display: flex;
   flex-direction: column;
   align-items: flex-start;
+  flex: 1;
+  width: 100%;
 }
 .product-name {
   display: block;
   background: none;
   border: 0;
   text-align: left;
-  font-size: 14px;
+  font-size: 15px;
   font-weight: 700;
   line-height: 1.35;
   padding: 0;
   margin: 0 0 7px;
   letter-spacing: -0.02em;
+  min-height: 2.7em;
 }
 .product-name:hover {
   color: var(--accent);
@@ -473,6 +494,11 @@ h3 {
   line-height: 1.55;
   letter-spacing: -0.01em;
 }
+.product-meta > span:first-child {
+  color: #3f3f48;
+  font-weight: 600;
+  margin-bottom: 3px;
+}
 .product-condition {
   margin-top: 6px;
 }
@@ -480,7 +506,8 @@ h3 {
   display: block;
   font-size: 22px;
   letter-spacing: -0.8px;
-  margin: 18px 0 11px;
+  margin: auto 0 12px;
+  padding-top: 20px;
   line-height: 1;
 }
 .add-button {
@@ -490,7 +517,7 @@ h3 {
   gap: 8px;
   white-space: nowrap;
   width: 100%;
-  margin-top: auto;
+  margin-top: 0;
 }
 .display-disclaimer {
   text-align: right;
@@ -1441,17 +1468,25 @@ tr:last-child td {
   }
   .product-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 26px 22px;
+    gap: 12px;
   }
   .product {
     display: flex;
     flex-direction: column;
-    gap: 14px;
+    gap: 12px;
+    padding: 12px;
   }
   .product-art-button {
-    height: 192px;
+    height: 190px;
+    padding: 6px;
     min-height: 0;
     width: 100%;
+  }
+  .product-art-button .product-image {
+    max-height: 178px;
+  }
+  .product-art-button .reference-art {
+    height: 178px;
   }
   .reference-art {
     width: auto;
@@ -1475,7 +1510,7 @@ tr:last-child td {
   }
   .price {
     font-size: 21px;
-    margin: 18px 0 12px;
+    margin: auto 0 12px;
   }
   .add-button {
     width: 100%;
@@ -1792,43 +1827,11 @@ tr:last-child td {
   color: var(--muted);
   margin-top: 10px;
 }
-@media (min-width: 1101px) {
-  .catalog-section:first-child {
-    padding-top: 30px;
-  }
-  .catalog-section:first-child .product-grid {
-    gap: 32px;
-  }
-  .catalog-section:first-child .product {
-    display: flex;
-    flex-direction: column;
-    gap: 22px;
-  }
-  .catalog-section:first-child .product-art-button {
-    height: 280px;
-  }
-  .catalog-section:first-child .reference-art {
-    width: auto;
-    height: 100%;
-    max-width: 100%;
-  }
-  .catalog-section:first-child .product-image {
-    max-height: 280px;
-  }
-  .catalog-section:first-child .product-body {
-    width: 100%;
-  }
-  .catalog-section:first-child .product-name {
-    font-size: 17px;
-  }
-  .catalog-section:first-child .product-meta {
-    font-size: 13px;
-  }
-  .catalog-section:first-child .add-button {
-    max-width: 180px;
-  }
-}
 @media (max-width: 1100px) and (min-width: 761px) {
+  .product-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 16px;
+  }
   .section-heading {
     flex-wrap: wrap;
     gap: 18px;
@@ -2086,9 +2089,12 @@ tr:last-child td {
 /* Exact printing filters and incremental catalog results. */
 .catalog-filters {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 16px;
   margin: 0 0 24px;
+}
+.catalog-filters[data-kind="sealed"] {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 .catalog-filters label {
   display: grid;
@@ -2106,16 +2112,25 @@ tr:last-child td {
   color: var(--ink);
   padding: 8px 10px;
 }
+.catalog-filters select:disabled {
+  background: #f5f5f7;
+  color: #71717a;
+  cursor: not-allowed;
+}
 .catalog-more {
   text-align: center;
   margin-top: 28px;
 }
 @media (max-width: 600px) {
-  .catalog-filters {
+  .catalog-filters,
+  .catalog-filters[data-kind="sealed"] {
     grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 12px;
   }
   .catalog-filters label:first-child {
+    grid-column: 1 / -1;
+  }
+  .catalog-filters label:nth-child(2) {
     grid-column: 1 / -1;
   }
 }

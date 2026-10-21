@@ -11,7 +11,7 @@ import ProductArt from "./product-art";
 import { useShop } from "./shop-provider";
 
 export default function HomeShowcase({ initial }: { initial: Listing[] }) {
-  const { query, setQuery, game, kind } = useShop();
+  const { filters, openProduct, updateFilters } = useShop();
   const isDisplay = initial.length === 0;
   const source = (isDisplay ? displayExamples : initial).filter(
     (item) => item.card_printings,
@@ -23,14 +23,23 @@ export default function HomeShowcase({ initial }: { initial: Listing[] }) {
     .slice()
     .sort((a, b) => comparePrice(a, b, false))
     .slice(0, 3);
-  if (query.trim() || game !== "all" || kind !== "all" || !cards.length)
+  if (
+    filters.query.trim() ||
+    filters.game !== "all" ||
+    filters.kind !== "all" ||
+    filters.all ||
+    filters.set ||
+    filters.language ||
+    filters.finish ||
+    !cards.length
+  )
     return null;
   return (
     <section className="home-display" aria-labelledby="home-display-title">
       <div className="wide">
         <header className="home-display-heading">
           <h2 id="home-display-title">En vitrina</h2>
-          <a href="#catalogo">
+          <a href="#catalogo" onClick={() => updateFilters({ all: true })}>
             Ver catálogo <ArrowRight size={20} />
           </a>
         </header>
@@ -42,8 +51,8 @@ export default function HomeShowcase({ initial }: { initial: Listing[] }) {
             >
               <button
                 className="showcase-art"
-                aria-label={`Ver ${item.card_printings?.canonical_name} en el catálogo`}
-                onClick={() => setQuery(item.card_printings!.canonical_name)}
+                aria-label={`Ver detalles de ${item.card_printings?.canonical_name}`}
+                onClick={() => openProduct(item.id)}
               >
                 <ProductArt item={item} />
               </button>
@@ -51,9 +60,7 @@ export default function HomeShowcase({ initial }: { initial: Listing[] }) {
                 <div>
                   <button
                     className="showcase-name"
-                    onClick={() =>
-                      setQuery(item.card_printings!.canonical_name)
-                    }
+                    onClick={() => openProduct(item.id)}
                   >
                     {item.card_printings?.canonical_name}
                   </button>

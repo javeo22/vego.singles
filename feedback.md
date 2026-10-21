@@ -142,3 +142,29 @@ After the release checks above, 790 copies across 737 missing variants were rece
 - **Evidence:** `.local/queue-completion/card-before.png`, `.local/queue-completion/card-mobile.png`, `.local/queue-completion/card-tablet.png`.
 
 The accompanying [queue review](docs/QUEUE_REVIEW_2026_10_21.md) records the remaining three seller decisions and inventory-preservation checks.
+
+## October 21 follow-up: product tiles and catalog flow
+
+**Review mode:** Browser (interactive desktop testing and responsive screenshots at 375 px and 768 px).
+
+### Major: showcase selection started a search — fixed
+
+- **What happened:** choosing a card in “En vitrina” searched its name, replaced the showcase and could mix different printings.
+- **Expected:** open that listing's details while preserving the current catalog and filters.
+- **Fix:** showcase and catalog now share exact-listing selection and deep links. Escape closes the dialog and restores the triggering button; Back/Forward restores selection and filters.
+- **Verification:** local browser selection opened the exact Tony Tony Chopper printing without a search query. Escape restored focus to its showcase button. Component tests cover same-name printings, deep links and history navigation.
+
+### Major: product boundaries and filtering lacked context — fixed
+
+- **What happened:** adjacent products did not have distinct containers; the full catalog mixed set and finish options from unrelated games and product types.
+- **Fix:** bordered tiles group art, printing number, condition, finish, price and purchase control. Added Todos / Singles / Sellados tabs and an explicit TCG selector with result counts. Set choices require a TCG, options follow the search and other selected filters, and sealed products hide card-only finishes. Switching game or product type clears incompatible variant filters.
+- **Verification:** local browser search for Pikachu returned two Pokémon printings; selecting Team Up returned the expected single result. Responsive screenshots show two columns at 375 px and three at 768 px, without horizontal overflow in the product grid. Automated tests cover game changes, sealed filtering and dependent options.
+- **Evidence:** `.local/catalog-ux/mobile-catalog.png`, `.local/catalog-ux/tablet-catalog.png`.
+
+### Sealed inventory — confirmed complete
+
+All six sealed products in the supplied CSV are already published. The owner confirmed that they now appear. No stock, prices or review decisions were changed during this follow-up.
+
+### Regression checks
+
+All 161 tests, TypeScript and ESLint passed. Live release checks are recorded in `.local/catalog-ux/` after deployment.

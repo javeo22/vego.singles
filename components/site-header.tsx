@@ -24,6 +24,7 @@ export default function SiteHeader() {
     game,
     setGame,
     kind,
+    filters,
     setKind,
     cart,
     cartLoading,
@@ -67,8 +68,8 @@ export default function SiteHeader() {
           >
             <MagnifyingGlass size={23} weight="light" aria-hidden="true" />
             <input
-              aria-label="Buscar carta o set…"
-              placeholder="Buscar carta o set…"
+              aria-label="Buscar carta, producto o set…"
+              placeholder="Buscar carta, producto o set…"
               value={query}
               onChange={(event) => setQuery(event.target.value)}
             />
@@ -99,7 +100,14 @@ export default function SiteHeader() {
           <div className="game-links">
             <button
               aria-pressed={
-                pathname === "/" && !query && game === "all" && kind === "all"
+                pathname === "/" &&
+                !query &&
+                game === "all" &&
+                kind === "all" &&
+                !filters.all &&
+                !filters.set &&
+                !filters.language &&
+                !filters.finish
               }
               onClick={() => {
                 updateFilters({
@@ -112,7 +120,12 @@ export default function SiteHeader() {
                   all: false,
                 });
                 if (pathname !== "/") router.push("/");
-                else window.scrollTo({ top: 0, behavior: "smooth" });
+                else {
+                  const url = new URL(window.location.href);
+                  url.hash = "";
+                  window.history.replaceState(window.history.state, "", url);
+                  window.scrollTo({ top: 0, behavior: "smooth" });
+                }
               }}
             >
               Inicio
