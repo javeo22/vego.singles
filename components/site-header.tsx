@@ -2,7 +2,6 @@
 import {
   MagnifyingGlass,
   ShoppingCart,
-  User,
   ArrowLeft,
 } from "@phosphor-icons/react";
 import { usePathname, useRouter } from "next/navigation";
@@ -84,11 +83,6 @@ export default function SiteHeader() {
             )}
           </form>
           <div className="header-actions">
-            <a href="/login" className="account-link" aria-label="Cuenta">
-              <User size={26} weight="light" />
-              <span>Cuenta</span>
-            </a>
-            <span className="header-divider" />
             <button className="cart-trigger" onClick={() => setCartOpen(true)}>
               <ShoppingCart size={27} weight="light" />
               <span>

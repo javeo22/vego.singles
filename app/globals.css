@@ -231,7 +231,6 @@ h3 {
   gap: 20px;
   white-space: nowrap;
 }
-.account-link,
 .cart-trigger {
   display: flex;
   align-items: center;
@@ -243,11 +242,6 @@ h3 {
   background: none;
   border: 0;
   padding: 8px 0;
-}
-.header-divider {
-  height: 20px;
-  width: 1px;
-  background: var(--line);
 }
 .category-nav {
   display: flex;
@@ -1338,18 +1332,6 @@ tr:last-child td {
   }
   .header-actions {
     gap: 15px;
-  }
-  .account-link {
-    gap: 6px;
-  }
-  .account-link span {
-    display: none;
-  }
-  .account-link svg {
-    width: 24px;
-  }
-  .header-divider {
-    display: none;
   }
   .cart-trigger {
     gap: 5px;
