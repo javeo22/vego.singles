@@ -92,9 +92,20 @@ export default function ShopProvider({ children }: { children: ReactNode }) {
   const [toast, setToast] = useState("");
   const timeout = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(() => {
+    const previousScrollRestoration = window.history.scrollRestoration;
+    window.history.scrollRestoration = "manual";
     const read = () => {
       const url = new URL(window.location.href);
-      setFilters(readFilters(url));
+      const restoredFilters = readFilters(url);
+      setFilters((current) =>
+        Object.keys(restoredFilters).every(
+          (key) =>
+            current[key as keyof CatalogFilters] ===
+            restoredFilters[key as keyof CatalogFilters],
+        )
+          ? current
+          : restoredFilters,
+      );
       productId.current = url.searchParams.get("card");
       setSelectedProductId(productId.current);
       pushedProduct.current = false;
@@ -109,7 +120,10 @@ export default function ShopProvider({ children }: { children: ReactNode }) {
     } catch {
       /* Storage can be disabled by the browser. */
     }
-    return () => window.removeEventListener("popstate", read);
+    return () => {
+      window.removeEventListener("popstate", read);
+      window.history.scrollRestoration = previousScrollRestoration;
+    };
   }, []);
   useEffect(() => {
     if (!urlReady || window.location.pathname !== "/") return;

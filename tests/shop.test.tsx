@@ -16,6 +16,10 @@ Object.defineProperties(globalThis, {
   },
   IS_REACT_ACT_ENVIRONMENT: { value: true, writable: true, configurable: true },
 });
+dom.window.requestAnimationFrame = (callback) =>
+  dom.window.setTimeout(() => callback(0), 0);
+dom.window.cancelAnimationFrame = (id) => dom.window.clearTimeout(id);
+dom.window.scrollTo = () => {};
 dom.window.HTMLDialogElement.prototype.showModal = function () {
   this.open = true;
 };
@@ -854,4 +858,147 @@ test("language and finish choices follow the selected TCG set", async () => {
     ).map((option) => option.value),
     ["", "Holo"],
   );
+});
+
+test("Magic color and type filters combine, survive URLs, and clear when changing TCG", async () => {
+  const cards = [
+    { name: "Blue creature", colors: ["U"], type: "Creature — Wizard" },
+    { name: "Two-color spell", colors: ["U", "R"], type: "Instant" },
+    { name: "Colorless land", colors: [], type: "Land" },
+  ].map((c, index) => ({
+    ...displayExamples[1],
+    id: `magic-${index}`,
+    card_printings: {
+      ...displayExamples[1].card_printings!,
+      canonical_name: c.name,
+      colors: c.colors,
+      type_line: c.type,
+    },
+  }));
+  const pokemon = {
+    ...displayExamples[0],
+    card_printings: {
+      ...displayExamples[0].card_printings!,
+      rarity: "Ultra Rare",
+    },
+  };
+  const user = shop([...cards, pokemon]);
+  await user.selectOptions(screen.getByLabelText("TCG"), "magic");
+  assert.equal(screen.queryByLabelText("Rareza"), null);
+  await user.selectOptions(screen.getByLabelText("Color"), "U");
+  assert.equal(screen.getAllByRole("article").length, 2);
+  await user.selectOptions(screen.getByLabelText("Tipo de carta"), "instant");
+  assert.equal(screen.getAllByRole("article").length, 1);
+  assert.ok(screen.getByRole("button", { name: "Ver Two-color spell" }));
+  assert.equal(new URL(window.location.href).searchParams.get("color"), "U");
+  assert.equal(
+    new URL(window.location.href).searchParams.get("type"),
+    "instant",
+  );
+  await user.selectOptions(screen.getByLabelText("TCG"), "pokemon");
+  assert.equal(screen.queryByLabelText("Color"), null);
+  assert.equal(new URL(window.location.href).searchParams.has("type"), false);
+  assert.ok(screen.getByRole("option", { name: "Ultra Rare" }));
+});
+
+test("Pokémon and One Piece expose their own rarity values and sealed products hide attributes", async () => {
+  const cards = [
+    {
+      ...displayExamples[0],
+      id: "poke-common",
+      card_printings: {
+        ...displayExamples[0].card_printings!,
+        rarity: "Common",
+      },
+    },
+    {
+      ...displayExamples[0],
+      id: "poke-ultra",
+      card_printings: {
+        ...displayExamples[0].card_printings!,
+        rarity: "Ultra Rare",
+      },
+    },
+    {
+      ...displayExamples[0],
+      id: "op-sr",
+      card_printings: {
+        ...displayExamples[0].card_printings!,
+        canonical_name: "One Piece SR",
+        game: "one-piece",
+        rarity: "SR",
+      },
+    },
+    displayExamples[3],
+  ];
+  const user = shop(cards);
+  await user.selectOptions(screen.getByLabelText("TCG"), "pokemon");
+  await user.selectOptions(screen.getByLabelText("Rareza"), "ultra rare");
+  assert.equal(screen.getAllByRole("article").length, 1);
+  assert.equal(screen.queryByRole("option", { name: "SR · Super rara" }), null);
+  await user.selectOptions(screen.getByLabelText("TCG"), "one-piece");
+  assert.equal(
+    (screen.getByLabelText("Rareza") as HTMLSelectElement).value,
+    "",
+  );
+  await user.selectOptions(screen.getByLabelText("Rareza"), "sr");
+  assert.ok(screen.getByRole("button", { name: "Ver One Piece SR" }));
+  await user.click(screen.getByRole("tab", { name: "Sellados" }));
+  assert.equal(screen.queryByLabelText("Rareza"), null);
+  assert.equal(new URL(window.location.href).searchParams.has("rarity"), false);
+});
+
+test("closing a card beyond the first batch preserves all loaded results and scroll position", async () => {
+  dom.window.history.replaceState(null, "", "/?all=1&game=pokemon");
+  const cards = Array.from({ length: 60 }, (_, i) => ({
+    ...displayExamples[0],
+    id: `loaded-${i}`,
+    approved_price_crc: 10000 - i,
+    card_printings: {
+      ...displayExamples[0].card_printings!,
+      canonical_name: `Loaded card ${i}`,
+    },
+  }));
+  const calls: ScrollToOptions[] = [];
+  const original = dom.window.scrollTo;
+  const scrollY = Object.getOwnPropertyDescriptor(dom.window, "scrollY");
+  Object.defineProperty(dom.window, "scrollY", {
+    value: 2600,
+    configurable: true,
+  });
+  dom.window.scrollTo = ((value: ScrollToOptions) => {
+    calls.push(value);
+  }) as typeof dom.window.scrollTo;
+  try {
+    const user = shop(cards);
+    await user.click(screen.getByRole("button", { name: "Cargar más cartas" }));
+    assert.equal(screen.getAllByRole("article").length, 48);
+    await user.click(
+      screen.getByRole("button", { name: "Ver Loaded card 40" }),
+    );
+    await user.click(
+      screen.getByRole("button", { name: "Cerrar detalles de la carta" }),
+    );
+    await waitFor(() =>
+      assert.equal(
+        new URL(window.location.href).searchParams.has("card"),
+        false,
+      ),
+    );
+    await waitFor(() => assert.equal(calls.at(-1)?.top, 2600));
+    assert.equal(screen.getAllByRole("article").length, 48);
+    dom.window.history.forward();
+    await screen.findByRole("dialog", { name: "Loaded card 40" });
+    dom.window.history.back();
+    await waitFor(() =>
+      assert.equal(
+        screen.queryByRole("dialog", { name: "Loaded card 40" }) === null,
+        true,
+      ),
+    );
+    assert.equal(screen.getAllByRole("article").length, 48);
+  } finally {
+    dom.window.scrollTo = original;
+    if (scrollY) Object.defineProperty(dom.window, "scrollY", scrollY);
+  }
 });

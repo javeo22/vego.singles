@@ -8,6 +8,9 @@ export const defaultFilters = {
   set: "",
   language: "",
   finish: "",
+  color: "",
+  cardType: "",
+  rarity: "",
   order: "desc",
   all: false,
 };
@@ -21,7 +24,16 @@ export function changeFilters(
     (value.kind !== undefined && value.kind !== current.kind);
   return {
     ...current,
-    ...(scopeChanged ? { set: "", language: "", finish: "" } : {}),
+    ...(scopeChanged
+      ? {
+          set: "",
+          language: "",
+          finish: "",
+          color: "",
+          cardType: "",
+          rarity: "",
+        }
+      : {}),
     ...value,
   };
 }
@@ -32,6 +44,9 @@ const parameters = {
   set: "set",
   language: "lang",
   finish: "finish",
+  color: "color",
+  cardType: "type",
+  rarity: "rarity",
   order: "order",
 } as const;
 
@@ -45,6 +60,15 @@ export function readFilters(url: URL): CatalogFilters {
   if (!(result.game in gameNames)) result.game = "all";
   if (!["single", "sealed"].includes(result.kind)) result.kind = "all";
   if (result.kind === "sealed") result.finish = "";
+  if (result.kind === "sealed" || result.game !== "magic") {
+    result.color = "";
+    result.cardType = "";
+  }
+  if (
+    result.kind === "sealed" ||
+    !["pokemon", "one-piece"].includes(result.game)
+  )
+    result.rarity = "";
   if (result.order !== "asc") result.order = "desc";
   result.all = url.searchParams.get("all") === "1";
   return result;

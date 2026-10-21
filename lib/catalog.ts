@@ -16,6 +16,9 @@ export type Listing = {
     game: string;
     stock_image_url: string | null;
     treatment?: string;
+    rarity?: string | null;
+    colors?: string[] | null;
+    type_line?: string | null;
   } | null;
 };
 

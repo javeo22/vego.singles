@@ -31,6 +31,9 @@ export default function HomeShowcase({ initial }: { initial: Listing[] }) {
     filters.set ||
     filters.language ||
     filters.finish ||
+    filters.color ||
+    filters.cardType ||
+    filters.rarity ||
     !cards.length
   )
     return null;

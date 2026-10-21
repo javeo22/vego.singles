@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import {
   ArrowRight,
   MagnifyingGlass,
@@ -19,6 +19,13 @@ import {
 import ProductArt from "./product-art";
 import { useShop } from "./shop-provider";
 import { defaultFilters } from "@/lib/shop-state";
+import {
+  facetOptions,
+  facetValues,
+  facetLabel,
+  matchesFacets,
+  specificFacets,
+} from "@/lib/catalog-filters";
 const productTypes = [
   ["all", "Todos"],
   ["single", "Singles"],
@@ -56,13 +63,17 @@ export default function Catalog({
     kind !== "all" ||
     filters.set ||
     filters.language ||
-    filters.finish,
+    filters.finish ||
+    filters.color ||
+    filters.cardType ||
+    filters.rarity,
   );
   useEffect(
     () => registerInventory(initial, unavailable),
     [initial, unavailable, registerInventory],
   );
-  useEffect(() => setLimit(24), [filters]);
+  const filterKey = JSON.stringify(filters);
+  useEffect(() => setLimit(24), [filterKey]);
   const searchScope = source.filter(
     (item) =>
       item.card_printings &&
@@ -74,35 +85,6 @@ export default function Catalog({
   const scope = searchScope.filter(
     (item) => game === "all" || item.card_printings?.game === game,
   );
-  const options = (field: "set" | "language" | "finish") =>
-    [
-      ...new Set(
-        scope
-          .filter(
-            (item) =>
-              (field === "set" ||
-                !filters.set ||
-                item.card_printings!.set_name === filters.set) &&
-              (field === "language" ||
-                !filters.language ||
-                variantLabel(item.card_printings!.language) ===
-                  filters.language) &&
-              (field === "finish" ||
-                !filters.finish ||
-                variantLabel(item.finish) === filters.finish),
-          )
-          .map((item) =>
-            field === "finish"
-              ? item.kind === "sealed"
-                ? ""
-                : variantLabel(item.finish)
-              : field === "set"
-                ? item.card_printings!.set_name
-                : variantLabel(item.card_printings!.language),
-          )
-          .filter(Boolean),
-      ),
-    ].sort((a, b) => a.localeCompare(b, "es"));
   const items = useMemo(
     () =>
       source
@@ -112,10 +94,7 @@ export default function Catalog({
             printing &&
             (game === "all" || printing.game === game) &&
             (kind === "all" || (item.kind || "single") === kind) &&
-            (!filters.set || printing.set_name === filters.set) &&
-            (!filters.language ||
-              variantLabel(printing.language) === filters.language) &&
-            (!filters.finish || variantLabel(item.finish) === filters.finish) &&
+            matchesFacets(item, filters) &&
             `${printing.canonical_name} ${printing.set_name} ${printing.collector_number}`
               .toLowerCase()
               .includes(query.toLowerCase().trim())
@@ -126,9 +105,41 @@ export default function Catalog({
   );
   const shown =
     filters.all || active ? items.slice(0, limit) : items.slice(0, 4);
-  useEffect(() => {
-    if (selected && !detail.current?.open) detail.current?.showModal();
-    if (!selected && detail.current?.open) detail.current?.close();
+  const browsingPosition = useRef<{
+    x: number;
+    y: number;
+    trigger: HTMLElement | null;
+  } | null>(null);
+  useLayoutEffect(() => {
+    const dialog = detail.current;
+    if (!dialog) return;
+    if (selected && !dialog.open) {
+      browsingPosition.current = {
+        x: window.scrollX,
+        y: window.scrollY,
+        trigger:
+          document.activeElement instanceof HTMLElement
+            ? document.activeElement
+            : null,
+      };
+      dialog.showModal();
+    }
+    if (!selected && browsingPosition.current) {
+      if (dialog.open) dialog.close();
+      const position = browsingPosition.current;
+      browsingPosition.current = null;
+      if (position) {
+        position.trigger?.focus({ preventScroll: true });
+        const frame = window.requestAnimationFrame(() =>
+          window.scrollTo({
+            left: position.x,
+            top: position.y,
+            behavior: "instant",
+          }),
+        );
+        return () => window.cancelAnimationFrame(frame);
+      }
+    }
   }, [selected]);
   return (
     <section
@@ -245,12 +256,13 @@ export default function Catalog({
                       ? "Todos los idiomas"
                       : "Todos los acabados"}
                 </option>
-                {filters[field] && !options(field).includes(filters[field]) && (
-                  <option value={filters[field]}>{filters[field]}</option>
-                )}
+                {filters[field] &&
+                  !facetOptions(scope, filters, field).includes(
+                    filters[field],
+                  ) && <option value={filters[field]}>{filters[field]}</option>}
                 {(field === "set" && game === "all" && !filters.set
                   ? []
-                  : options(field)
+                  : facetOptions(scope, filters, field)
                 ).map((value) => (
                   <option key={value} value={value}>
                     {value}
@@ -260,6 +272,37 @@ export default function Catalog({
             </label>
           ))}
       </div>
+      {specificFacets(game, kind).length > 0 && (
+        <fieldset className="tcg-filters">
+          <legend>{gameNames[game]}</legend>
+          {specificFacets(game, kind).map(([field, label, placeholder]) => (
+            <label key={field}>
+              {label}
+              <select
+                value={filters[field]}
+                onChange={(event) =>
+                  updateFilters({ [field]: event.target.value })
+                }
+              >
+                <option value="">{placeholder}</option>
+                {filters[field] &&
+                  !facetOptions(scope, filters, field).includes(
+                    filters[field],
+                  ) && (
+                    <option value={filters[field]}>
+                      {facetLabel(field, filters[field], game)}
+                    </option>
+                  )}
+                {facetOptions(scope, filters, field).map((value) => (
+                  <option key={value} value={value}>
+                    {facetLabel(field, value, game)}
+                  </option>
+                ))}
+              </select>
+            </label>
+          ))}
+        </fieldset>
+      )}
       {(active || filters.all) && (
         <div className="filter-summary">
           <span role="status">
@@ -438,6 +481,26 @@ export default function Catalog({
                     <dd>{variantLabel(selected.finish)}</dd>
                   </div>
                 )}
+                {specificFacets(
+                  selected.card_printings?.game || "",
+                  selected.kind || "single",
+                ).map(([field, label]) => (
+                  <div key={field}>
+                    <dt>{label}</dt>
+                    <dd>
+                      {facetValues(selected, field)
+                        .filter((value) => value !== "multicolor")
+                        .map((value) =>
+                          facetLabel(
+                            field,
+                            value,
+                            selected.card_printings?.game || "",
+                          ),
+                        )
+                        .join(" · ") || "Por confirmar"}
+                    </dd>
+                  </div>
+                ))}
                 {selected.treatment && selected.treatment !== "standard" && (
                   <div>
                     <dt>Edición</dt>

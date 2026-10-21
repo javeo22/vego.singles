@@ -168,3 +168,20 @@ All six sealed products in the supplied CSV are already published. The owner con
 ### Regression checks
 
 All 161 tests, TypeScript and ESLint passed. Live release checks are recorded in `.local/catalog-ux/` after deployment.
+
+## October 21 follow-up: game attributes and scroll recovery
+
+### Major: selected-card return reset loaded results and scroll — fixed
+
+- **What happened:** closing a detail dialog or using Back recreated the filters, reset the catalog to 24 results and let browser history scroll to the catalog anchor.
+- **Fix:** preserve equivalent filters and loaded batches; explicitly restore the browsing position and triggering button when details close, including native Escape. Disable automatic history scroll restoration while the shop provider is mounted.
+- **Verification:** browser testing of a card in the second loaded batch returned to exactly 6,282 px after Escape and Back/Forward, with all 48 cards retained. Component regression tests cover batch preservation and scroll recovery.
+- **Evidence:** `.local/tcg-filters/scroll-return.png`.
+
+### Game-specific filters — implemented
+
+- Magic: Color (including colorless and multicolor) and Tipo de carta; Pokémon and One Piece: Rareza. Choices depend on the current game, search and other selected filters. Product-type/game changes clear incompatible attributes; sealed products hide them. URLs preserve the selected attributes, which are also shown in card details.
+- Rarity comes from the accepted Collectr export, with existing catalog rarity as fallback. Magic colors and types use existing catalog metadata and exact Scryfall product/collector-number matches. Missing colors remain unconfirmed rather than becoming colorless.
+- Normal store updates now fill missing Magic attributes automatically. Catalog-source failures retain existing attributes and do not stop price updates.
+- Migration `202610210009_catalog_attributes` exposes only public attributes and adds a service-only enrichment function tied to the accepted product ID. A transaction rollback rehearsal and production application verified that stock, prices, publication state and existing public listing fields remain unchanged.
+- All 168 tests passed, including source matching, URL/filter semantics, service permissions and inventory preservation. TypeScript and ESLint passed. Production release evidence is recorded under `.local/tcg-filters/`.

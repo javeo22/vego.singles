@@ -8,6 +8,7 @@ import {
   type ClaimedStoreItem,
 } from "./collectr-automation";
 import { pricingExchangeReady } from "./price-workflow";
+import { fetchCatalogAttributes } from "./catalog-attributes";
 
 export async function storeRpc(
   db: SupabaseClient,
@@ -165,6 +166,35 @@ export async function processStoreUpdate(db: SupabaseClient, run: string) {
   );
   if (proofs.length)
     await storeRpc(db, "finish_store_updates", { p_items: proofs });
+  const missingAttributes = items.filter(
+    (item) =>
+      item.printing.game === "magic" &&
+      item.printing.kind !== "sealed" &&
+      !item.printing.metadata?.catalog_attributes,
+  );
+  if (missingAttributes.length) {
+    // Attribute coverage is optional; a catalog outage must not block prices.
+    try {
+      const { data, error } = await db
+        .from("card_printings")
+        .select(
+          "id,game,kind,tcgplayer_product_id,collector_number,identity_verified",
+        )
+        .in(
+          "id",
+          missingAttributes.map((item) => item.printing.id),
+        );
+      if (!error && data)
+        for (const match of await fetchCatalogAttributes(data))
+          await storeRpc(db, "save_catalog_attributes", {
+            p_printing: match.printingId,
+            p_product: match.productId,
+            p_attributes: match.attributes,
+          });
+    } catch {
+      /* Keep the existing attributes and retry on the next update. */
+    }
+  }
   const [summary, exchange] = await Promise.all([
     storeRpc(db, "store_update_summary", { p_run: run }),
     db.from("operation_settings").select("fx,fx_at,fx_source,fx_mode").single(),
