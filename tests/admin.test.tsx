@@ -1164,7 +1164,10 @@ test("simple Collectr upload processes automatically without location, language 
   });
   render(<StoreUpdatePanel role="owner" onDone={() => {}} />);
   await waitFor(() =>
-    assert.equal(screen.queryByText("Cargando tu última actualización…") === null, true),
+    assert.equal(
+      screen.queryByText("Cargando tu última actualización…") === null,
+      true,
+    ),
   );
   const csv =
     "Portfolio Name,Category,Set,Product Name,Card Number,Variance,Card Condition,Quantity,Watchlist\nMain,Pokemon,Black Bolt,Pikachu,1,Holofoil,Near Mint,1,false";
@@ -1233,4 +1236,182 @@ test("simple price update resumes automatically and accepts all proposed excepti
   );
   await screen.findByText("Todo listo");
   assert.deepEqual(calls, ["process", "accept"]);
+});
+
+test("guided review saves one card, waits for Next, resolves a manual price and completes the queue", async () => {
+  const { ReviewQueue } = await import("../components/admin/review-queue");
+  window.localStorage.clear();
+  const other = "00000000-0000-4000-8000-000000000023";
+  const cards = [
+    {
+      id,
+      listingId: id,
+      name: "Alpha",
+      status: "review",
+      set: "Test Set",
+      number: "1",
+      imageUrl: null,
+      language: "unknown",
+      condition: "Near Mint",
+      finish: "Foil",
+      game: "magic",
+      before: 1000,
+      after: 2000,
+      reason: "Cambio de precio",
+      canAccept: true,
+      sourceUrl: "https://example.com/alpha",
+      expected: { priceRevision: 1 },
+      published: true,
+      locked: false,
+      minimumPrice: 1,
+    },
+    {
+      id: other,
+      listingId: other,
+      name: "Beta",
+      status: "review",
+      set: "Other Set",
+      number: "2",
+      imageUrl: null,
+      language: "unknown",
+      condition: "Near Mint",
+      finish: "Foil",
+      game: "magic",
+      before: 0,
+      after: null,
+      reason: "No hay precio único",
+      canAccept: false,
+      sourceUrl: null,
+      expected: { priceRevision: 0 },
+      published: false,
+      locked: false,
+      minimumPrice: 1,
+    },
+  ];
+  const saved: any[] = [];
+  mock((url, body) => {
+    if (body) {
+      saved.push(body);
+      const card = cards.find((c) => c.id === body.id)!;
+      card.status = "updated";
+      card.before = body.price || Number(card.after);
+      card.published = true;
+      return json({ published: true });
+    }
+    return json({
+      items: cards.filter((c) => c.status === "review"),
+      selected:
+        cards.find((c) => c.listingId === url.searchParams.get("listing")) ||
+        null,
+      running: false,
+    });
+  });
+  const user = userEvent.setup({ document: dom.window.document });
+  render(<ReviewQueue role="owner" onDone={() => {}} onResolved={() => {}} />);
+  await user.click(
+    await screen.findByRole("button", { name: "Revisar una por una" }),
+  );
+  await screen.findByRole("heading", { name: "Alpha" });
+  assert.equal(
+    (screen.getByRole("button", { name: "Siguiente" }) as HTMLButtonElement)
+      .disabled,
+    true,
+  );
+  await user.click(screen.getByRole("button", { name: "Aceptar y publicar" }));
+  await screen.findByText("Resuelta y publicada");
+  assert.ok(screen.getByRole("heading", { name: "Alpha" }));
+  assert.equal(saved[0].price, null);
+  await user.click(screen.getByRole("button", { name: "Siguiente" }));
+  await screen.findByRole("heading", { name: "Beta" });
+  await user.type(screen.getByLabelText("Precio final en colones"), "1500");
+  await user.click(
+    screen.getByRole("button", { name: "Guardar precio y publicar" }),
+  );
+  await screen.findByText("Resuelta y publicada");
+  assert.equal(saved[1].price, 1500);
+  assert.equal(saved[1].action, "review");
+  assert.deepEqual(saved[1].expected, { priceRevision: 0 });
+  assert.equal(screen.queryByLabelText("Ubicación") === null, true);
+  await user.click(screen.getByRole("button", { name: "Terminar recorrido" }));
+  await screen.findByText("Cola al día.");
+  assert.ok(screen.getByText("Todas las cartas de la cola están resueltas."));
+  window.localStorage.clear();
+});
+
+test("guided review retains failed decisions, skips without resolving and resumes at the saved card", async () => {
+  const { ReviewQueue } = await import("../components/admin/review-queue");
+  window.localStorage.clear();
+  const other = "00000000-0000-4000-8000-000000000023";
+  const cards = [id, other].map((listingId, index) => ({
+    id: listingId,
+    listingId,
+    name: index ? "Beta" : "Alpha",
+    status: "review",
+    set: "Test",
+    number: "1",
+    language: "unknown",
+    condition: "Near Mint",
+    finish: "Foil",
+    game: "magic",
+    before: 0,
+    after: null,
+    reason: "Revisar referencia",
+    canAccept: false,
+    sourceUrl: null,
+    expected: { priceRevision: 1 },
+    locked: false,
+    minimumPrice: 1,
+  }));
+  const writes: any[] = [];
+  mock((url, body) => {
+    if (body) {
+      writes.push(body);
+      return json({ error: "Los datos cambiaron. Recarga esta carta." }, 409);
+    }
+    return json({
+      items: cards,
+      selected:
+        cards.find((c) => c.listingId === url.searchParams.get("listing")) ||
+        null,
+      running: false,
+    });
+  });
+  const user = userEvent.setup({ document: dom.window.document });
+  const first = render(
+    <ReviewQueue role="owner" onDone={() => {}} onResolved={() => {}} />,
+  );
+  await user.click(
+    await screen.findByRole("button", { name: "Revisar una por una" }),
+  );
+  await screen.findByRole("heading", { name: "Alpha" });
+  await user.type(screen.getByLabelText("Precio final en colones"), "1200");
+  await user.click(
+    screen.getByRole("button", { name: "Guardar precio y publicar" }),
+  );
+  await screen.findByText("Los datos cambiaron. Recarga esta carta.");
+  assert.equal(
+    (screen.getByLabelText("Precio final en colones") as HTMLInputElement)
+      .value,
+    "1200",
+  );
+  assert.ok(screen.getByRole("heading", { name: "Alpha" }));
+  await user.click(screen.getByRole("button", { name: "Dejar para después" }));
+  await screen.findByRole("heading", { name: "Beta" });
+  assert.equal(writes.length, 1);
+  first.unmount();
+  render(<ReviewQueue role="owner" onDone={() => {}} onResolved={() => {}} />);
+  await user.click(
+    await screen.findByRole("button", { name: "Revisar una por una" }),
+  );
+  await screen.findByRole("heading", { name: "Beta" });
+  assert.equal(screen.queryByRole("heading", { name: "Alpha" }) === null, true);
+  await user.click(screen.getByRole("button", { name: "Dejar para después" }));
+  await screen.findByText("Terminaste este recorrido.");
+  assert.ok(screen.getByText(/2 cartas siguen pendientes/));
+  await user.click(
+    screen.getByRole("button", { name: "Revisar pendientes restantes" }),
+  );
+  await screen.findByRole("heading", { name: "Alpha" });
+  assert.equal(writes.length, 1);
+  window.localStorage.clear();
 });

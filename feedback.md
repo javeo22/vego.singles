@@ -1,3 +1,13 @@
+# Guided review queue — 2026-10-21
+
+The admin screen now offers **Revisar una por una**. Each card stays open after saving until the reviewer presses **Siguiente**. The queue spans older updates, keeps a browser-local cursor, and allows skipping without marking a card resolved. A final screen distinguishes a finished pass from an empty queue.
+
+Suggested prices can be accepted directly. A manual CRC price can be entered on the same screen, with optional source and note, without repeating Collectr identity or location checks. Manual decisions have a separate audit trail and do not create verified market quotes. Server guards preserve cost floors, price locks, reservations and manual holds; stale or superseded reviews cannot overwrite a later decision.
+
+**Validation:** PostgreSQL tests cover cross-import queues, duplicate prevention, idempotent manual decisions, unchanged stock, permission boundaries and stale edits. Component tests cover save → explicit Next → manual price → complete, failed saves, skipped cards and resuming. Browser evidence is saved under `.local/` using disposable local stock and the real business functions; it is not an authenticated production admin session.
+
+---
+
 # Collectr workflow simplification — 2026-10-21
 
 **Review mode:** Browser interaction with the real React component, PostgreSQL integration tests, and live public pricing feeds. The local integration page uses disposable stock; it is not a signed-in production admin session.

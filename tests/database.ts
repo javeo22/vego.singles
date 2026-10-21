@@ -98,6 +98,12 @@ export async function database(beforeOperations = "") {
       "utf8",
     ),
   );
+  await db.exec(
+    await readFile(
+      "supabase/migrations/202610210006_guided_review_queue.sql",
+      "utf8",
+    ),
+  );
   await actor(db, owner);
   return db;
 }

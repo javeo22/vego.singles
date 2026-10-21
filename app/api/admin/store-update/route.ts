@@ -34,6 +34,21 @@ const schema = z.discriminatedUnion("action", [
     .strict(),
   z.object({ action: z.literal("process"), id }).strict(),
   z.object({ action: z.literal("accept"), id }).strict(),
+  z
+    .object({
+      action: z.literal("review"),
+      id,
+      expected: z.record(z.unknown()),
+      price: z.number().int().min(1).max(100000000).nullable(),
+      source: z
+        .string()
+        .max(1000)
+        .url()
+        .refine((v) => v.startsWith("https://"))
+        .or(z.literal("")),
+      note: z.string().max(500),
+    })
+    .strict(),
 ]);
 function fail(error: unknown) {
   return NextResponse.json(
@@ -51,7 +66,16 @@ function fail(error: unknown) {
 export async function GET(request: Request) {
   try {
     const { db } = await adminClient();
-    const run = new URL(request.url).searchParams.get("run");
+    const params = new URL(request.url).searchParams;
+    if (params.get("queue") === "1") {
+      const listing = params.get("listing");
+      if (listing) id.parse(listing);
+      return NextResponse.json(
+        await storeRpc(db, "store_review_queue", { p_listing: listing }),
+        { headers: { "Cache-Control": "no-store" } },
+      );
+    }
+    const run = params.get("run");
     if (run) id.parse(run);
     const summary = await storeRpc(db, "store_update_summary", { p_run: run });
     const { data: settings } = await db
@@ -83,6 +107,18 @@ export async function POST(request: Request) {
       const summary = await processStoreUpdate(db, input.id);
       revalidatePath("/");
       return NextResponse.json(summary);
+    }
+    if (input.action === "review") {
+      const outcome = await storeRpc(db, "resolve_store_review", {
+        p_item: input.id,
+        p_expected: input.expected,
+        p_price: input.price,
+        p_source: input.source,
+        p_note: input.note,
+        p_actor: user.id,
+      });
+      revalidatePath("/");
+      return NextResponse.json(outcome);
     }
     if (input.action === "accept") {
       const outcome = await storeRpc(db, "finish_store_update", {
