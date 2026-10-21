@@ -29,6 +29,28 @@ const product = {
 };
 
 test("source matching requires the exact game, set, collector number and treatment without collapsing promos or different scripts", () => {
+  for (const [game, incoming, provider] of [
+    [
+      "magic",
+      "Tales of Middle-earth Commander",
+      "Commander: The Lord of the Rings: Tales of Middle-earth",
+    ],
+    [
+      "magic",
+      "Tales of Middle-earth Scene Box",
+      "Art Series: Universes Beyond: The Lord of the Rings: Tales of Middle-earth",
+    ],
+    [
+      "magic",
+      "Forgotten Realms Commander",
+      "Commander: Adventures in the Forgotten Realms",
+    ],
+    ["magic", "Breaking News", "Outlaws of Thunder Junction: Breaking News"],
+    ["pokemon", "Sword & Shield", "SWSH01: Sword & Shield Base Set"],
+    ["pokemon", "SWSH Black Star Promos", "SWSH: Sword & Shield Promo Cards"],
+    ["pokemon", "SVP Black Star Promos", "SV: Scarlet & Violet Promo Cards"],
+  ])
+    assert.equal(sourceSetKey(game, incoming), sourceSetKey(game, provider));
   assert.equal(
     sourceSetKey("magic", "Commander: Edge of Eternities"),
     sourceSetKey("magic", "Edge of Eternities Commander"),
@@ -108,6 +130,31 @@ test("source matching requires the exact game, set, collector number and treatme
       [{ ...product, categoryId: 68, name: "DON!! Card (Katakuri)" }],
       68,
       2545,
+    ),
+    [],
+  );
+  const sealed = {
+    ...printing,
+    game: "magic",
+    kind: "sealed",
+    collector_number: "",
+    sourceName: "Universes Beyond: FINAL FANTASY - Play Booster Display",
+  };
+  assert.equal(
+    sourceProductCandidates(
+      sealed,
+      [{ productId: 10, name: "FINAL FANTASY - Play Booster Display" }],
+      1,
+      1,
+    )[0]?.exact,
+    true,
+  );
+  assert.deepEqual(
+    sourceProductCandidates(
+      sealed,
+      [{ productId: 10, name: "FINAL FANTASY - Play Booster Display Case" }],
+      1,
+      1,
     ),
     [],
   );

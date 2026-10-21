@@ -39,7 +39,7 @@ export async function importCollectr(
   actor: string,
 ) {
   const parsed = parseImport(text, {}, "pokemon", {
-    defaultLanguage: "unknown",
+    defaultLanguage: "en",
     sourceCurrency: "unknown",
   });
   if (

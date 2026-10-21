@@ -375,7 +375,7 @@ export default function Catalog({
               <X size={23} />
             </button>
             <div className="detail-art">
-              <ProductArt item={selected} />
+              <ProductArt item={selected} detail />
             </div>
             <div>
               <span className="eyebrow">

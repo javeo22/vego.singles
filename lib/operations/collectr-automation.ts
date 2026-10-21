@@ -3,9 +3,12 @@ import { getDocument } from "./provider-http";
 import {
   sourceProductCandidates,
   sourceSetKey,
+  sourceKey,
   comparisonPrices,
   type SourceProduct,
 } from "./source-matching";
+import { sameCollectorNumber } from "./imports";
+import { collectrCardName } from "./collectr";
 
 export const exchangeSource = "https://api.hacienda.go.cr/indicadores/tc/dolar";
 const cache = new Map<
@@ -101,7 +104,16 @@ export async function collectrPriceProof(
       ...base,
       reason: "Esta carta no viene de Collectr y necesita completar su ficha.",
     };
-  if (!["unknown", "en", "english"].includes(c.language.toLowerCase()))
+  const japaneseAlternateArt =
+    c.game === "magic" &&
+    ["ja", "japanese"].includes(c.language.toLowerCase()) &&
+    /\bJP Alternate Art\b/i.test(
+      c.metadata?.original_data?.["Product Name"] || "",
+    );
+  if (
+    !["unknown", "en", "english"].includes(c.language.toLowerCase()) &&
+    !japaneseAlternateArt
+  )
     return {
       ...base,
       reason:
@@ -120,9 +132,15 @@ export async function collectrPriceProof(
     (await document(`https://tcgcsv.com/tcgplayer/${category}/groups`, request))
       .data,
   ).results;
+  const sourceSet =
+    c.game === "magic" &&
+    sourceKey(c.set_name) === "mystery booster 2" &&
+    c.treatment === "playtest"
+      ? "Mystery Booster 2 Playtest Cards"
+      : c.set_name;
   const matches = groups.filter(
     (group) =>
-      sourceSetKey(c.game, group.name) === sourceSetKey(c.game, c.set_name),
+      sourceSetKey(c.game, group.name) === sourceSetKey(c.game, sourceSet),
   );
   if (matches.length !== 1)
     return {
@@ -138,7 +156,7 @@ export async function collectrPriceProof(
       )
     ).data,
   ).results;
-  const candidates = sourceProductCandidates(
+  const exactCandidates = sourceProductCandidates(
     {
       ...c,
       game: c.game,
@@ -153,6 +171,86 @@ export async function collectrPriceProof(
     category,
     group.groupId,
   ).filter((candidate) => candidate.exact);
+  const fullNameMatches = exactCandidates.filter(
+    (candidate) => candidate.exactName,
+  );
+  let candidates = fullNameMatches.length ? fullNameMatches : exactCandidates;
+  let catalogBridge: Record<string, unknown> | null = null;
+  // Scryfall bridges reskinned names and TCGPlayer rows missing a number.
+  // It must confirm the same set, number, English name and exact product ID.
+  if (
+    !candidates.length &&
+    c.game === "magic" &&
+    ["en", "english"].includes(c.language.toLowerCase()) &&
+    c.collector_number
+  ) {
+    const sets = z
+      .object({
+        data: z.array(z.object({ code: z.string(), name: z.string() })),
+      })
+      .parse(
+        (await document("https://api.scryfall.com/sets", request)).data,
+      ).data;
+    const matchingSets = sets.filter(
+      (set) =>
+        sourceSetKey("magic", set.name) === sourceSetKey("magic", c.set_name),
+    );
+    if (matchingSets.length === 1) {
+      const bridgeUrl = `https://api.scryfall.com/cards/${matchingSets[0].code}/${encodeURIComponent(c.collector_number)}/en`;
+      const card = z
+        .object({
+          name: z.string(),
+          set_name: z.string(),
+          collector_number: z.string(),
+          lang: z.string(),
+          tcgplayer_id: z.number().nullable().optional(),
+          flavor_name: z.string().optional(),
+        })
+        .parse((await document(bridgeUrl, request)).data);
+      const names = [
+        card.name,
+        card.flavor_name,
+        card.flavor_name && `${card.flavor_name} - ${card.name}`,
+      ]
+        .filter(Boolean)
+        .map((name) => sourceKey(name!));
+      const matchesIdentity =
+        card.lang === "en" &&
+        sameCollectorNumber(card.collector_number, c.collector_number) &&
+        sourceSetKey("magic", card.set_name) ===
+          sourceSetKey("magic", c.set_name) &&
+        names.includes(sourceKey(c.canonical_name));
+      const exactProduct = matchesIdentity
+        ? products.filter(
+            (product) =>
+              product.productId === card.tcgplayer_id &&
+              (product.categoryId === undefined ||
+                product.categoryId === category) &&
+              (product.groupId === undefined ||
+                product.groupId === group.groupId),
+          )
+        : [];
+      if (exactProduct.length === 1) {
+        candidates = [
+          {
+            product: exactProduct[0],
+            number: c.collector_number,
+            exact: true,
+            exactName: false,
+          },
+        ];
+        catalogBridge = {
+          sourceUrl: bridgeUrl,
+          name: card.name,
+          set: card.set_name,
+          number: card.collector_number,
+          language: card.lang,
+          tcgplayerId: card.tcgplayer_id,
+          checkedAt: new Date(now).toISOString(),
+        };
+      }
+    }
+  }
   if (candidates.length !== 1)
     return {
       ...base,
@@ -161,9 +259,11 @@ export async function collectrPriceProof(
           ? "Hay varias impresiones posibles; elige la variante exacta."
           : "El nombre, número o edición no coincide con un producto único.",
     };
-  const product = candidates[0].product as SourceProduct & {
+  let product = candidates[0].product as SourceProduct & {
     imageUrl?: string;
   };
+  if (japaneseAlternateArt && !/\bJP Alternate Art\b/i.test(product.name))
+    return { ...base, reason: "La referencia no confirma el arte japonés." };
   const doc = await document(
     `https://tcgcsv.com/tcgplayer/${category}/${group.groupId}/prices`,
     request,
@@ -184,13 +284,63 @@ export async function collectrPriceProof(
       reason:
         "La fuente no ofrece un precio vigente. Conservamos el precio actual.",
     };
-  const references = comparisonPrices(
+  let references = comparisonPrices(
     product.productId,
-    l.finish,
+    c.kind === "sealed" ? "Non-foil" : l.finish,
     prices.results,
     updated,
     new Date(now).toISOString(),
   );
+  // Secret Lair sometimes splits its sole foil variant into a separate
+  // Rainbow Foil product. Generic Collectr Foil can map only when that same
+  // name and collector number have exactly one priced foil product.
+  const sourceName =
+    c.metadata?.original_data?.["Product Name"] || c.canonical_name;
+  if (
+    !references.length &&
+    c.game === "magic" &&
+    sourceSetKey("magic", c.set_name) === "secret lair drop" &&
+    c.treatment === "standard" &&
+    l.finish.toLowerCase() === "foil" &&
+    collectrCardName(sourceName).treatment === "standard"
+  ) {
+    const foilProducts = sourceProductCandidates(
+      {
+        game: c.game,
+        canonical_name: c.canonical_name,
+        collector_number: c.collector_number,
+        treatment: c.treatment,
+        kind: c.kind,
+        sourceName,
+      },
+      products as SourceProduct[],
+      category,
+      group.groupId,
+    )
+      .filter(
+        (candidate) =>
+          sourceKey(collectrCardName(candidate.product.name).name) ===
+          sourceKey(c.canonical_name),
+      )
+      .flatMap((candidate) =>
+        comparisonPrices(
+          candidate.product.productId,
+          l.finish,
+          prices.results,
+          updated,
+          new Date(now).toISOString(),
+        ).map((reference) => ({ candidate, reference })),
+      );
+    if (
+      foilProducts.length === 1 &&
+      ["standard", "rainbow foil"].includes(
+        collectrCardName(foilProducts[0].candidate.product.name).treatment,
+      )
+    ) {
+      product = foilProducts[0].candidate.product;
+      references = [foilProducts[0].reference];
+    }
+  }
   if (references.length !== 1)
     return {
       ...base,
@@ -212,6 +362,13 @@ export async function collectrPriceProof(
       number: candidates[0].number,
       imageUrl: image,
     },
-    reference: references[0],
+    reference: {
+      ...references[0],
+      ...(c.kind === "sealed"
+        ? { finish: l.finish, sourceSubtype: "Normal", sealedProduct: true }
+        : {}),
+      ...(japaneseAlternateArt ? { sourceLanguage: "ja" } : {}),
+      ...(catalogBridge ? { catalogBridge } : {}),
+    },
   };
 }

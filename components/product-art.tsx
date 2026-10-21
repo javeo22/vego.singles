@@ -8,15 +8,53 @@ const crops = {
   "star-wars": { x: 957, y: 675, w: 140, h: 168 },
 };
 
-export default function ProductArt({ item }: { item: Listing }) {
+function detailImageUrl(source: string) {
+  try {
+    const url = new URL(source);
+    if (url.hostname === "cards.scryfall.io") {
+      url.pathname = url.pathname.replace(/^\/(small|normal)\//, "/large/");
+    } else if (url.hostname === "images.pokemontcg.io") {
+      url.pathname = url.pathname.replace(/(?<!_hires)\.png$/, "_hires.png");
+    } else if (url.hostname === "assets.tcgdex.net") {
+      url.pathname = url.pathname.replace(/\/low\.(webp|png|jpg)$/, "/high.$1");
+    } else if (url.hostname === "tcgplayer-cdn.tcgplayer.com") {
+      url.pathname = url.pathname.replace(/_\d+w\.jpg$/, "_in_1000x1000.jpg");
+    }
+    return url.href;
+  } catch {
+    return source;
+  }
+}
+
+export default function ProductArt({
+  item,
+  detail = false,
+}: {
+  item: Listing;
+  detail?: boolean;
+}) {
   const printing = item.card_printings;
   if (printing?.stock_image_url)
     return (
       <img
         className="product-image"
-        src={printing.stock_image_url}
+        key={`${printing.stock_image_url}-${detail}`}
+        src={
+          detail
+            ? detailImageUrl(printing.stock_image_url)
+            : printing.stock_image_url
+        }
         alt={printing.canonical_name}
-        loading="lazy"
+        loading={detail ? "eager" : "lazy"}
+        onError={
+          detail
+            ? (event) => {
+                const image = event.currentTarget;
+                if (image.getAttribute("src") !== printing.stock_image_url)
+                  image.src = printing.stock_image_url!;
+              }
+            : undefined
+        }
       />
     );
   if (item.reference) {

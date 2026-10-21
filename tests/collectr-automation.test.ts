@@ -532,3 +532,322 @@ test("changing the fixed exchange recalculates queued suggestions without approv
     await db.close();
   }
 });
+
+test("automation prefers the complete source title and maps sealed Normal quotes without mixing card finishes", async () => {
+  const item = {
+    printing: {
+      game: "magic",
+      canonical_name: "Scion of Draco",
+      set_name: "Secret Lair Drop",
+      collector_number: "2031",
+      language: "en",
+      kind: "single",
+      treatment: "standard",
+      metadata: {
+        original_data: {
+          "Product Name": "Scion of Draco (2031) (Rainbow Foil)",
+        },
+      },
+    },
+    listing: { condition: "Near Mint", finish: "Foil" },
+    expected: {},
+    trustedCollectr: true,
+  } as unknown as ClaimedStoreItem;
+  const request = (async (url: any) =>
+    new Response(
+      JSON.stringify(
+        String(url).endsWith("/groups")
+          ? { results: [{ groupId: 1, name: "Secret Lair Drop Series" }] }
+          : String(url).endsWith("/products")
+            ? {
+                results: [
+                  {
+                    productId: 2,
+                    name: "Scion of Draco (2031)",
+                    extendedData: [{ name: "Number", value: "2031" }],
+                  },
+                  {
+                    productId: 3,
+                    name: "Scion of Draco (2031) (Rainbow Foil)",
+                    extendedData: [{ name: "Number", value: "2031" }],
+                  },
+                ],
+              }
+            : {
+                lastUpdated: new Date().toISOString(),
+                results: [
+                  { productId: 2, subTypeName: "Normal", marketPrice: 7 },
+                  { productId: 3, subTypeName: "Foil", marketPrice: 5.65 },
+                ],
+              },
+      ),
+    )) as typeof fetch;
+  const proof = await collectrPriceProof(item, request);
+  assert.equal("matched" in proof && proof.matched, true);
+  assert.equal("product" in proof && proof.product.productId, 3);
+  const sealed = {
+    ...item,
+    printing: {
+      ...item.printing,
+      canonical_name: "Gift Bundle",
+      collector_number: "",
+      kind: "sealed",
+      metadata: { original_data: { "Product Name": "Gift Bundle" } },
+    },
+    listing: { condition: "Sealed Product", finish: "Sealed" },
+  };
+  const sealedRequest = (async (url: any) =>
+    new Response(
+      JSON.stringify(
+        String(url).endsWith("/groups")
+          ? { results: [{ groupId: 1, name: "Secret Lair Drop Series" }] }
+          : String(url).endsWith("/products")
+            ? { results: [{ productId: 4, name: "Gift Bundle" }] }
+            : {
+                lastUpdated: new Date().toISOString(),
+                results: [
+                  { productId: 4, subTypeName: "Normal", marketPrice: 90 },
+                ],
+              },
+      ),
+    )) as typeof fetch;
+  const sealedProof = await collectrPriceProof(sealed, sealedRequest);
+  assert.equal("matched" in sealedProof && sealedProof.matched, true);
+  assert.equal(
+    "reference" in sealedProof && sealedProof.reference.finish,
+    "Sealed",
+  );
+  assert.equal("reference" in sealedProof && sealedProof.reference.amount, 90);
+});
+
+test("Japanese alternate art requires matching Japanese source labels in the worker and database", async () => {
+  const { db, id, run } = await setup();
+  try {
+    await db.exec("reset role");
+    await db.query(
+      "update card_printings set game='magic',language='ja',metadata=jsonb_set(metadata,'{original_data,Product Name}','\"Test Card (JP Alternate Art)\"') where id=(select card_printing_id from listings where id=$1)",
+      [id],
+    );
+    const expected = (
+      await db.query<any>("select store_card_snapshot($1) data", [id])
+    ).rows[0].data;
+    const current = (
+      await db.query<any>(
+        "select to_jsonb(c) printing,to_jsonb(l) listing from listings l join card_printings c on c.id=l.card_printing_id where l.id=$1",
+        [id],
+      )
+    ).rows[0];
+    const request = (async (url: any) =>
+      new Response(
+        JSON.stringify(
+          String(url).endsWith("/groups")
+            ? { results: [{ groupId: 1, name: "Test Set" }] }
+            : String(url).endsWith("/products")
+              ? {
+                  results: [
+                    {
+                      productId: 123,
+                      name: "Test Card (JP Alternate Art)",
+                      extendedData: [{ name: "Number", value: "12" }],
+                    },
+                  ],
+                }
+              : {
+                  lastUpdated: new Date().toISOString(),
+                  results: [
+                    { productId: 123, subTypeName: "Holofoil", marketPrice: 2 },
+                  ],
+                },
+        ),
+      )) as typeof fetch;
+    const p = await collectrPriceProof(
+      { ...current, expected, trustedCollectr: true } as ClaimedStoreItem,
+      request,
+    );
+    assert.equal("matched" in p && p.matched, true);
+    assert.equal("reference" in p && p.reference.sourceLanguage, "ja");
+    const item = (
+      await db.query<any>("select * from store_update_items where run_id=$1", [
+        run,
+      ])
+    ).rows[0];
+    await actor(db, owner, "service_role");
+    await db.exec("begin; savepoint rejected_language");
+    const wrong = structuredClone(p) as any;
+    wrong.reference.sourceLanguage = "en";
+    const rejected = await finish(db, item, wrong);
+    assert.equal(rejected.published, undefined);
+    assert.match(rejected.reason, /mismo idioma/);
+    await db.exec("rollback to savepoint rejected_language");
+    await actor(db, owner, "service_role");
+    const accepted = await finish(db, item, p);
+    assert.equal(accepted.published, true);
+    assert.equal(accepted.language, "ja");
+    await db.exec("commit");
+    const noLabel = await collectrPriceProof(
+      { ...current, expected, trustedCollectr: true } as ClaimedStoreItem,
+      (async (url: any) => {
+        const response = await request(url);
+        return new Response(
+          (await response.text()).replaceAll(
+            "Test Card (JP Alternate Art)",
+            "Test Card",
+          ),
+        );
+      }) as typeof fetch,
+    );
+    assert.equal("matched" in noLabel && noLabel.matched, false);
+  } finally {
+    await db.close();
+  }
+});
+
+test("Scryfall bridges a reskinned name or missing feed number only for the same English set and number", async () => {
+  const item = {
+    printing: {
+      game: "magic",
+      canonical_name: "Suq'Ata Firewalker",
+      set_name: "The List",
+      collector_number: "MIR-94",
+      language: "en",
+      kind: "single",
+      treatment: "standard",
+      metadata: { original_data: { "Product Name": "Suq'Ata Firewalker" } },
+    },
+    listing: { condition: "Near Mint", finish: "Non-foil" },
+    expected: {},
+    trustedCollectr: true,
+  } as unknown as ClaimedStoreItem;
+  const requestFor = (number: string) =>
+    (async (url: any) =>
+      new Response(
+        JSON.stringify(
+          String(url).includes("api.scryfall.com/sets")
+            ? { data: [{ name: "The List", code: "plst" }] }
+            : String(url).includes("api.scryfall.com/cards/")
+              ? {
+                  name: "Suq'Ata Firewalker",
+                  set_name: "The List",
+                  collector_number: number,
+                  lang: "en",
+                  tcgplayer_id: 4,
+                }
+              : String(url).endsWith("/groups")
+                ? { results: [{ groupId: 1, name: "The List Reprints" }] }
+                : String(url).endsWith("/products")
+                  ? { results: [{ productId: 4, name: "Suq'Ata Firewalker" }] }
+                  : {
+                      lastUpdated: new Date().toISOString(),
+                      results: [
+                        {
+                          productId: 4,
+                          subTypeName: "Normal",
+                          marketPrice: 0.12,
+                        },
+                      ],
+                    },
+        ),
+      )) as typeof fetch;
+  const exact = await collectrPriceProof(item, requestFor("MIR-94"));
+  assert.equal("matched" in exact && exact.matched, true);
+  assert.equal("reference" in exact && exact.reference.amount, 0.12);
+  const wrong = await collectrPriceProof(item, requestFor("MIR-95"));
+  assert.equal("matched" in wrong && wrong.matched, false);
+});
+
+test("generic Secret Lair foil resolves only a unique priced foil for the same name and number", async () => {
+  const item = {
+    printing: {
+      game: "magic",
+      canonical_name: "Opt",
+      set_name: "Secret Lair Drop Series",
+      collector_number: "2068",
+      language: "en",
+      kind: "single",
+      treatment: "standard",
+      metadata: { original_data: { "Product Name": "Opt (2068)" } },
+    },
+    listing: { condition: "Near Mint", finish: "Foil" },
+    expected: {},
+    trustedCollectr: true,
+  } as unknown as ClaimedStoreItem;
+  const requestFor = (duplicate: boolean) =>
+    (async (url: any) =>
+      new Response(
+        JSON.stringify(
+          String(url).endsWith("/groups")
+            ? { results: [{ groupId: 1, name: "Secret Lair Drop Series" }] }
+            : String(url).endsWith("/products")
+              ? {
+                  results: [
+                    {
+                      productId: 2,
+                      name: "Opt (2068)",
+                      extendedData: [{ name: "Number", value: "2068" }],
+                    },
+                    {
+                      productId: 3,
+                      name: "Opt (2068) (Rainbow Foil)",
+                      extendedData: [{ name: "Number", value: "2068" }],
+                    },
+                    ...(duplicate
+                      ? [
+                          {
+                            productId: 4,
+                            name: "Opt (2068) (Foil Etched)",
+                            extendedData: [{ name: "Number", value: "2068" }],
+                          },
+                        ]
+                      : []),
+                  ],
+                }
+              : {
+                  lastUpdated: new Date().toISOString(),
+                  results: [
+                    { productId: 2, subTypeName: "Normal", marketPrice: 6.29 },
+                    { productId: 3, subTypeName: "Foil", marketPrice: 7.72 },
+                    ...(duplicate
+                      ? [{ productId: 4, subTypeName: "Foil", marketPrice: 12 }]
+                      : []),
+                  ],
+                },
+        ),
+      )) as typeof fetch;
+  const unique = await collectrPriceProof(item, requestFor(false));
+  assert.equal("product" in unique && unique.product.productId, 3);
+  assert.equal("reference" in unique && unique.reference.amount, 7.72);
+  const ambiguous = await collectrPriceProof(item, requestFor(true));
+  assert.equal("matched" in ambiguous && ambiguous.matched, false);
+});
+
+test("the store's Collectr import defaults to owner-confirmed English and preserves Japanese title labels", async () => {
+  const { importCollectr } = await import("../lib/operations/store-update");
+  const saved: any[] = [];
+  const db: any = {
+    from: () => ({
+      select: () => ({
+        order: () => ({ range: async () => ({ data: [], error: null }) }),
+      }),
+    }),
+    rpc: async (name: string, args: any) => {
+      if (name === "save_collectr_rows") saved.push(...args.p_rows);
+      return {
+        data:
+          name === "begin_collectr_import"
+            ? crypto.randomUUID()
+            : name === "receive_collectr_groups"
+              ? args.p_groups.length
+              : null,
+        error: null,
+      };
+    },
+  };
+  await importCollectr(
+    db,
+    "Portfolio Name,Category,Set,Product Name,Card Number,Variance,Card Condition,Quantity,Watchlist\nMain,One Piece,Legacy of the Master,Card,OP12-001,Foil,Near Mint,1,false\nMain,One Piece,Legacy of the Master,Perona (JP),OP12-034,Foil,Near Mint,1,false",
+    "export.csv",
+    owner,
+  );
+  assert.equal(saved[0].row.language, "en");
+  assert.equal(saved[1].row.language, "ja");
+});

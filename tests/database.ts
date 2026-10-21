@@ -110,6 +110,12 @@ export async function database(beforeOperations = "") {
       "utf8",
     ),
   );
+  await db.exec(
+    await readFile(
+      "supabase/migrations/202610210008_japanese_alternate_art_prices.sql",
+      "utf8",
+    ),
+  );
   await actor(db, owner);
   return db;
 }

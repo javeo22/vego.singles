@@ -817,18 +817,19 @@ dialog::backdrop {
   position: fixed;
   inset: 0;
   max-width: calc(100vw - 32px);
-  width: 650px;
+  width: 1100px;
   margin: auto;
   border-radius: 8px;
-  max-height: 90dvh;
+  max-height: calc(100dvh - 32px);
   overflow: auto;
 }
 .product-detail {
   position: relative;
   display: grid;
-  grid-template-columns: 200px 1fr;
-  gap: 35px;
-  padding: 42px;
+  grid-template-columns: minmax(0, 1.6fr) minmax(260px, 1fr);
+  align-items: center;
+  gap: 40px;
+  padding: 40px;
 }
 .detail-close {
   position: absolute;
@@ -839,9 +840,15 @@ dialog::backdrop {
   display: flex;
   align-items: center;
   justify-content: center;
+  min-width: 0;
 }
 .detail-art .reference-art {
+  width: 100%;
+  height: auto;
   max-width: none;
+}
+.detail-art .product-image {
+  max-height: calc(100dvh - 112px);
 }
 .product-detail h2 {
   font-size: 30px;
@@ -1587,19 +1594,18 @@ tr:last-child td {
   .product-detail {
     grid-template-columns: 1fr;
     gap: 26px;
-    padding: 35px 25px 25px;
+    padding: 44px 16px 24px;
   }
   .detail-art {
-    height: 230px;
-    margin-top: 10px;
+    height: auto;
   }
   .detail-art .reference-art {
-    width: auto;
-    height: 100%;
+    width: 100%;
+    height: auto;
   }
   .detail-art .product-image {
-    max-height: 230px;
-    width: auto;
+    max-height: none;
+    width: 100%;
     max-width: 100%;
   }
   .product-detail h2 {

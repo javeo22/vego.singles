@@ -59,6 +59,13 @@ export function sourceSetKey(game: string, value: string) {
       "list reprints": "the list reprints",
       "stellar sights": "edge of eternities stellar sights",
       "marvel eternal legal": "marvel universe eternal legal",
+      "tales of middle earth commander":
+        "the lord of the rings tales of middle earth commander",
+      "tales of middle earth scene box":
+        "art series universes beyond the lord of the rings tales of middle earth",
+      "forgotten realms commander":
+        "adventures in the forgotten realms commander",
+      "breaking news": "outlaws of thunder junction breaking news",
     },
     pokemon: {
       "scarlet violet promo": "scarlet violet promos",
@@ -66,6 +73,9 @@ export function sourceSetKey(game: string, value: string) {
       "sword shield promo": "sword shield promos",
       "mega evolution promo": "mega evolution promos",
       "scarlet violet 151": "151",
+      "sword shield": "sword shield base set",
+      "swsh black star promos": "sword shield promos",
+      "svp black star promos": "scarlet violet promos",
     },
     "one-piece": {
       "starter deck 10 ultimate deck the three captains":
@@ -102,8 +112,14 @@ export function sourceProductCandidates(
       product.extendedData?.find((field) =>
         /^(number|card number|cardnumber)$/i.test(field.name),
       )?.value || "";
-    const fullName = sourceKey(printing.sourceName);
-    const providerFullName = sourceKey(product.name);
+    const productNameKey = (name: string) =>
+      sourceKey(
+        printing.game === "magic" && printing.kind === "sealed"
+          ? name.replace(/^Universes Beyond:\s*/i, "")
+          : name,
+      );
+    const fullName = productNameKey(printing.sourceName);
+    const providerFullName = productNameKey(product.name);
     const exactName = fullName === providerFullName;
     const numbered = printing.kind === "single" && !!printing.collector_number;
     if (
@@ -133,7 +149,7 @@ export function sourceProductCandidates(
     const sameTreatment =
       treatmentKey(parsed.treatment) === treatmentKey(printing.treatment);
     const exact = exactName || (sameName && sameTreatment);
-    return [{ product, number, exact }];
+    return [{ product, number, exact, exactName }];
   });
 }
 

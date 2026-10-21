@@ -130,3 +130,15 @@ Authenticated admin screens were covered by component and database tests, rather
 ## Subsequent stock intake
 
 After the release checks above, 790 copies across 737 missing variants were received as unpublished, quarantined inventory with language pending review. Physical stock is now 1,122 copies; public listings remain 289. See [stock intake receipt](docs/STOCK_INTAKE_2026_10_21.md).
+
+## October 21 follow-up: selected-card artwork
+
+### Major: selected artwork stayed at catalog thumbnail size — fixed
+
+- **What happened:** the live detail dialog constrained the selected image to 190 px high, making card text difficult to inspect.
+- **Expected:** selection opens a readable image with the product details and purchase control.
+- **Fix:** expanded the dialog and artwork column, removed thumbnail height constraints in the detail view, and requested higher-resolution artwork with a fallback to the original source.
+- **Verification:** local desktop artwork rendered at 608 px high. Browser checks at 768 px and 375 px showed readable artwork and reachable price/cart controls. Escape and dialog focus remain covered by the storefront tests.
+- **Evidence:** `.local/queue-completion/card-before.png`, `.local/queue-completion/card-mobile.png`, `.local/queue-completion/card-tablet.png`.
+
+The accompanying [queue review](docs/QUEUE_REVIEW_2026_10_21.md) records the remaining three seller decisions and inventory-preservation checks.
