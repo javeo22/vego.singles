@@ -86,6 +86,12 @@ export async function database(beforeOperations = "") {
       "utf8",
     ),
   );
+  await db.exec(
+    await readFile(
+      "supabase/migrations/202610210004_collectr_initial_receipt_release.sql",
+      "utf8",
+    ),
+  );
   await actor(db, owner);
   return db;
 }

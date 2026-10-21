@@ -59,7 +59,7 @@ async function main() {
     args.find((a) => a.startsWith("--run="))?.slice(6) || crypto.randomUUID();
   assert.match(requested, /^[a-f0-9-]{36}$/);
   const run = await query(
-    `start_store_update('prices',null,null,'${requested}')`,
+    `start_store_update('${args.includes("--review-only") ? "review" : "prices"}',null,null,'${requested}')`,
   );
   const rate = await officialExchange();
   await query(

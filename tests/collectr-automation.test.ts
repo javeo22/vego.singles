@@ -373,3 +373,66 @@ test("batch automation keeps manually quarantined stock held and records a revie
     await db.close();
   }
 });
+
+test("the earlier CSV intake quarantine event is released while subsequent manual holds remain protected", async () => {
+  const { db, id, item, batch } = await setup();
+  try {
+    await db.exec("reset role");
+    const hash = "a".repeat(64);
+    await db.query(
+      "update card_printings set metadata=metadata||jsonb_build_object('source_file_sha256',$1::text) where id=(select card_printing_id from listings where id=$2)",
+      [hash, id],
+    );
+    await db.query(
+      "insert into inventory_events(listing_id,quantity_change,previous_quantity,new_quantity,reason,reference_number,created_at,details) select $1,2,0,2,'Recepción CSV provisional: solo variantes ausentes',$2,created_at,jsonb_build_object('quarantined',true,'source_file_sha256',$3::text) from stock_lots where listing_id=$1",
+      [id, batch, hash],
+    );
+    await actor(db, owner, "service_role");
+    const result = await finish(db, item, proof(item));
+    assert.equal(result.published, true);
+    assert.deepEqual(
+      (
+        await db.query(
+          "select quantity,quarantined from stock_lots where listing_id=$1",
+          [id],
+        )
+      ).rows,
+      [{ quantity: 2, quarantined: false }],
+    );
+  } finally {
+    await db.close();
+  }
+  const held = await setup();
+  try {
+    await held.db.exec("reset role");
+    await held.db.query(
+      "insert into inventory_events(listing_id,quantity_change,previous_quantity,new_quantity,reason,reference_number,details) values($1,2,0,2,'Recepción CSV provisional: solo variantes ausentes',$2,jsonb_build_object('quarantined',true))",
+      [held.id, held.batch],
+    );
+    await actor(held.db, owner, "service_role");
+    const result = (
+      await held.db.query<any>("select finish_store_updates($1) data", [
+        JSON.stringify([
+          {
+            id: held.item.id,
+            token: held.item.lease_token,
+            proof: proof(held.item),
+          },
+        ]),
+      ])
+    ).rows[0].data;
+    assert.equal(result[0].canAccept, false);
+    await held.db.exec("reset role");
+    assert.equal(
+      (
+        await held.db.query<any>(
+          "select quarantined from stock_lots where listing_id=$1",
+          [held.id],
+        )
+      ).rows[0].quarantined,
+      true,
+    );
+  } finally {
+    await held.db.close();
+  }
+});
