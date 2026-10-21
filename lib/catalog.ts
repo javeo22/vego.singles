@@ -139,6 +139,11 @@ export function variantLabel(value: string | null | undefined) {
   if (!value) return "";
   return variantLabels[value.trim().toLowerCase()] || value;
 }
+export function languageLabel(value: string | null | undefined) {
+  return value?.toLowerCase() === "unknown"
+    ? "Idioma por confirmar"
+    : variantLabel(value);
+}
 
 export function parseStockQuantity(value: unknown): number | null {
   if (value === null || value === undefined || value === "") return null;

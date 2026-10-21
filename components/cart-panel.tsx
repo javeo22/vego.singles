@@ -12,6 +12,7 @@ import {
 import {
   formatPrice,
   variantLabel,
+  languageLabel,
   stockQuantity,
   cartLimit,
 } from "@/lib/catalog";
@@ -72,7 +73,7 @@ export default function CartPanel() {
   const directCheckout = () => {
     const lines = cart.map(
       ({ item, count }) =>
-        `${count}x ${item.card_printings?.canonical_name} · ${item.card_printings?.set_name || ""} · ${item.card_printings?.collector_number || ""} · ${variantLabel(item.card_printings?.language)} · ${variantLabel(item.condition)} · ${variantLabel(item.finish)}${item.treatment && item.treatment !== "standard" ? ` · ${variantLabel(item.treatment)}` : ""} — ${formatPrice(item.approved_price_crc * count)}${item.sample ? " (referencia; confirmar precio y disponibilidad)" : stockQuantity(item) === null ? " (disponibilidad por confirmar)" : ""}`,
+        `${count}x ${item.card_printings?.canonical_name} · ${item.card_printings?.set_name || ""} · ${item.card_printings?.collector_number || ""} · ${languageLabel(item.card_printings?.language)} · ${variantLabel(item.condition)} · ${variantLabel(item.finish)}${item.treatment && item.treatment !== "standard" ? ` · ${variantLabel(item.treatment)}` : ""} — ${formatPrice(item.approved_price_crc * count)}${item.sample ? " (referencia; confirmar precio y disponibilidad)" : stockQuantity(item) === null ? " (disponibilidad por confirmar)" : ""}`,
     );
     const text = `Hola, quiero consultar disponibilidad:\n\n${lines.join("\n")}\n\n${samples ? "Precios de referencia" : "Subtotal de cartas"}: ${formatPrice(subtotal)}\n${deliveryMessage(fulfillment)}\n\nEntiendo que agregar al carrito no reserva las cartas. Por favor, confirmar disponibilidad y precio final.`;
     window.open(whatsappUrl(text), "_blank", "noopener,noreferrer");
@@ -120,7 +121,7 @@ export default function CartPanel() {
             treatment?: string;
           };
         }) =>
-          `${l.quantity}x ${l.variant.name} · ${l.variant.set} · ${l.variant.number} · ${variantLabel(l.variant.language)} · ${variantLabel(l.variant.condition)} · ${variantLabel(l.variant.finish)}${l.variant.treatment && l.variant.treatment !== "standard" ? ` · ${variantLabel(l.variant.treatment)}` : ""} — ${formatPrice(l.price * l.quantity)}`,
+          `${l.quantity}x ${l.variant.name} · ${l.variant.set} · ${l.variant.number} · ${languageLabel(l.variant.language)} · ${variantLabel(l.variant.condition)} · ${variantLabel(l.variant.finish)}${l.variant.treatment && l.variant.treatment !== "standard" ? ` · ${variantLabel(l.variant.treatment)}` : ""} — ${formatPrice(l.price * l.quantity)}`,
       );
       const pendingDelivery = result.deliveryPending === true;
       const text = `Hola, consulta ${result.number}:\n\n${lines.join("\n")}\n\nSubtotal: ${formatPrice(result.subtotal)}\n${deliveryMessage(fulfillment, { pending: pendingDelivery, amountCrc: result.delivery })}\n${pendingDelivery ? "Total sin envío" : "Total"}: ${formatPrice(result.total)}\n\nPor favor confirmar disponibilidad. Esta consulta no reserva las cartas.`;
@@ -191,7 +192,7 @@ export default function CartPanel() {
                       <p>{item.card_printings?.set_name}</p>
                       <p>
                         {variantLabel(item.condition)} ·{" "}
-                        {variantLabel(item.card_printings?.language)}{" "}
+                        {languageLabel(item.card_printings?.language)}{" "}
                         {item.finish && `· ${variantLabel(item.finish)}`}
                       </p>
                       {stockQuantity(item) === null && (

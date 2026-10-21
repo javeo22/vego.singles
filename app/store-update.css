@@ -1,0 +1,287 @@
+.store-updater {
+  max-width: 1080px;
+  margin: 0 auto 2.5rem;
+}
+.su-intro {
+  padding: 1rem 0 1.8rem;
+  border-bottom: 2px solid #1b1b1e;
+}
+.su-eyebrow {
+  font-size: 0.73rem;
+  letter-spacing: 0.15em;
+  font-weight: 800;
+  color: #c6282c;
+}
+.su-intro h2 {
+  font-size: clamp(1.8rem, 4vw, 2.8rem);
+  letter-spacing: -0.05em;
+  line-height: 1.07;
+  margin: 0.5rem 0 0.8rem;
+}
+.su-intro > p:last-child {
+  max-width: 660px;
+  color: #595961;
+  line-height: 1.6;
+}
+.su-tasks {
+  display: flex;
+  gap: 12px;
+  margin: 22px 0;
+}
+.su-tasks button {
+  flex: 1;
+  min-height: 94px;
+  text-align: left;
+  border: 1px solid #d7d7dc;
+  background: #fff;
+  padding: 18px 20px;
+  border-radius: 10px;
+  color: #303036;
+  cursor: pointer;
+}
+.su-tasks button[aria-pressed="true"] {
+  background: #1b1b1e;
+  border-color: #1b1b1e;
+  color: white;
+}
+.su-tasks strong,
+.su-tasks span {
+  display: block;
+}
+.su-tasks strong {
+  font-size: 1.05rem;
+  margin-bottom: 6px;
+}
+.su-tasks span {
+  font-size: 0.9rem;
+  opacity: 0.8;
+}
+.su-tasks button:disabled {
+  cursor: default;
+}
+.su-action {
+  background: #f6f6f8;
+  border: 1px solid #e4e4e8;
+  border-radius: 12px;
+  padding: 26px;
+}
+.su-action h3 {
+  font-size: 1.3rem;
+  margin-top: 0;
+}
+.su-action > p {
+  line-height: 1.6;
+  color: #55555e;
+  max-width: 750px;
+}
+.su-upload {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  font-weight: 700;
+}
+.su-upload input {
+  font: inherit;
+  background: #fff;
+  border: 1px solid #d5d5dc;
+  padding: 14px;
+  border-radius: 8px;
+  max-width: 100%;
+}
+.su-policy {
+  font-size: 0.8rem;
+  margin: 22px 0 0;
+  color: #686873 !important;
+}
+.su-progress {
+  border: 1px solid #dedee4;
+  border-radius: 12px;
+  margin: 24px 0;
+  padding: 24px;
+}
+.su-progress-title {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 14px;
+}
+.su-progress-title h3 {
+  font-size: 1.25rem;
+  margin: 0;
+}
+.su-progress-title > span {
+  color: #62626c;
+  font-size: 0.9rem;
+}
+.su-progress progress {
+  display: block;
+  width: 100%;
+  height: 9px;
+  accent-color: #1b1b1e;
+  margin: 22px 0;
+}
+.su-stats {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 18px;
+}
+.su-stats div {
+  padding: 12px 0;
+}
+.su-stats strong {
+  display: block;
+  font-size: 2rem;
+  line-height: 1.1;
+  letter-spacing: -0.04em;
+}
+.su-stats span {
+  display: block;
+  color: #5b5b65;
+  font-size: 0.85rem;
+  margin-top: 8px;
+}
+.su-progress > p {
+  font-size: 0.85rem;
+  color: #64646d;
+  line-height: 1.5;
+}
+.su-exceptions {
+  margin: 30px 0;
+}
+.su-exceptions > .ops-field {
+  margin: 22px 0;
+  max-width: 480px;
+}
+.su-exception {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(120px, auto) auto;
+  gap: 20px;
+  align-items: center;
+  padding: 22px 0;
+  border-bottom: 1px solid #e2e2e7;
+}
+.su-exception h4 {
+  font-size: 1rem;
+  margin: 0 0 5px;
+}
+.su-exception p {
+  margin: 5px 0;
+  font-size: 0.85rem;
+  color: #62626b;
+  line-height: 1.5;
+}
+.su-exception .su-reason {
+  color: #5a421a;
+}
+.su-price-change span,
+.su-price-change strong {
+  display: block;
+  font-size: 0.9rem;
+}
+.su-price-change span {
+  color: #74747d;
+  margin-bottom: 6px;
+}
+.su-exceptions > .button {
+  margin-top: 22px;
+}
+.su-error {
+  margin: 20px 0;
+  border-left: 4px solid #c6282c;
+  background: #fff2f2;
+  padding: 16px 20px;
+}
+.su-pages {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  margin: 22px 0;
+}
+.su-pages span {
+  font-size: 0.85rem;
+}
+.su-exceptions details {
+  margin: 24px 0;
+}
+.su-exceptions summary {
+  cursor: pointer;
+  font-weight: 700;
+}
+.su-exceptions li {
+  margin: 12px 0;
+  line-height: 1.5;
+}
+.store-updater button:focus-visible,
+.store-updater a:focus-visible {
+  outline: 3px solid #bd2228;
+  outline-offset: 4px;
+}
+.store-updater .button {
+  min-height: 44px;
+}
+.product-language-pending {
+  display: block;
+  font-size: 0.75rem;
+  color: #805514;
+  margin-top: 6px;
+}
+.su-advanced {
+  max-width: 1080px;
+  margin: 30px auto;
+}
+.su-advanced > summary {
+  cursor: pointer;
+  font-weight: 600;
+  padding: 16px 0;
+  border-top: 1px solid #ddd;
+}
+.su-advanced[open] > summary {
+  margin-bottom: 20px;
+}
+@media (max-width: 640px) {
+  .su-intro {
+    padding-top: 8px;
+  }
+  .su-tasks {
+    flex-direction: column;
+  }
+  .su-tasks button {
+    min-height: 80px;
+  }
+  .su-action,
+  .su-progress {
+    padding: 20px;
+  }
+  .su-stats {
+    gap: 12px;
+  }
+  .su-stats strong {
+    font-size: 1.75rem;
+  }
+  .su-stats span {
+    font-size: 0.75rem;
+  }
+  .su-exception {
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 14px;
+  }
+  .su-exception > div:last-child {
+    grid-column: 1/-1;
+  }
+  .su-exception .button {
+    width: 100%;
+  }
+  .su-progress-title > .button {
+    width: 100%;
+  }
+  .su-pages {
+    flex-wrap: wrap;
+  }
+  .su-upload input {
+    min-width: 0;
+    width: 100%;
+    box-sizing: border-box;
+  }
+}

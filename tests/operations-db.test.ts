@@ -426,7 +426,7 @@ test("server search pages beyond the first hundred records and treats search tex
   ).rows[0].result;
   assert.equal(weird.total, 0);
 });
-test("role checks apply at the RPC boundary and unlocated stock cannot publish", async () => {
+test("role checks apply at the RPC boundary and location is optional for publication", async () => {
   const id = await listing(db);
   await actor(db, reviewer);
   await assert.rejects(
@@ -440,9 +440,10 @@ test("role checks apply at the RPC boundary and unlocated stock cannot publish",
     [id],
   );
   await actor(db);
-  await assert.rejects(
-    command(db, "publish", { id, published: true }),
-    /ubicación/,
+  await command(db, "publish", { id, published: true });
+  assert.equal(
+    (await db.query<any>("select published from listings where id=$1", [id])).rows[0].published,
+    true,
   );
 });
 

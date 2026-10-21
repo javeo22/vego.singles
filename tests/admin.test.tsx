@@ -1136,3 +1136,101 @@ test("catalog comparisons remain visible for review without offering a price cal
   );
   assert.equal(screen.queryByText("Precio listo para calcular"), null);
 });
+
+test("simple Collectr upload processes automatically without location, language or identity forms", async () => {
+  const { StoreUpdatePanel } = await import("../components/admin/store-update");
+  const sent: any[] = [];
+  const empty = {
+    run: null,
+    total: 0,
+    done: 0,
+    updated: 0,
+    unchanged: 0,
+    review: 0,
+    exceptions: [],
+  };
+  mock((_url, body) => {
+    if (!body) return json(empty);
+    sent.push(body);
+    if (body.action === "import")
+      return json({ ...empty, run: { id, status: "running" }, total: 1 });
+    return json({
+      ...empty,
+      run: { id, status: "completed" },
+      total: 1,
+      done: 1,
+      updated: 1,
+    });
+  });
+  render(<StoreUpdatePanel role="owner" onDone={() => {}} />);
+  await waitFor(() =>
+    assert.equal(screen.queryByText("Cargando tu última actualización…") === null, true),
+  );
+  const csv =
+    "Portfolio Name,Category,Set,Product Name,Card Number,Variance,Card Condition,Quantity,Watchlist\nMain,Pokemon,Black Bolt,Pikachu,1,Holofoil,Near Mint,1,false";
+  const file = new dom.window.File([csv], "export.csv", { type: "text/csv" });
+  Object.defineProperty(file, "text", { value: async () => csv });
+  const user = userEvent.setup({ document: dom.window.document });
+  await user.upload(screen.getByLabelText("CSV de Collectr"), file);
+  await user.click(screen.getByRole("button", { name: "Importar y publicar" }));
+  await screen.findByText("Actualización terminada");
+  assert.deepEqual(
+    sent.map((s) => s.action),
+    ["import", "process"],
+  );
+  assert.equal(sent[0].text, csv);
+  assert.equal(screen.queryByLabelText("Ubicación"), null);
+  assert.equal(screen.queryByText("Confirmar datos"), null);
+  assert.ok(screen.getByText("Actualizadas y publicadas"));
+});
+
+test("simple price update resumes automatically and accepts all proposed exceptions together", async () => {
+  const { StoreUpdatePanel } = await import("../components/admin/store-update");
+  const calls: string[] = [];
+  const exception = {
+    id,
+    listingId: id,
+    name: "Swinub",
+    set: "Test Set",
+    number: "1",
+    before: 1000,
+    after: 2000,
+    reason: "El cambio supera 10%",
+    canAccept: true,
+  };
+  let accepted = false;
+  const completed = () => ({
+    run: { id, status: "completed" },
+    total: 1,
+    done: 1,
+    updated: accepted ? 1 : 0,
+    unchanged: 0,
+    review: accepted ? 0 : 1,
+    exceptions: accepted ? [] : [exception],
+  });
+  mock((_url, body) => {
+    if (!body)
+      return json(
+        accepted
+          ? completed()
+          : { ...completed(), run: { id, status: "running" }, done: 0 },
+      );
+    calls.push(body.action);
+    if (body.action === "accept") {
+      accepted = true;
+      return json({ published: true });
+    }
+    return json(completed());
+  });
+  render(
+    <StoreUpdatePanel role="owner" initialMode="prices" onDone={() => {}} />,
+  );
+  await screen.findByText("Solo falta resolver esto");
+  assert.deepEqual(calls, ["process"]);
+  const user = userEvent.setup({ document: dom.window.document });
+  await user.click(
+    screen.getByRole("button", { name: "Aplicar 1 cambios propuestos" }),
+  );
+  await screen.findByText("Todo listo");
+  assert.deepEqual(calls, ["process", "accept"]);
+});

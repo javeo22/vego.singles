@@ -1,6 +1,7 @@
 import "@fontsource-variable/inter";
 import "./globals.css";
 import "./pricing.css";
+import "./store-update.css";
 import ShopProvider from "@/components/shop-provider";
 import SiteHeader from "@/components/site-header";
 import SiteFooter from "@/components/site-footer";

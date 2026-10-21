@@ -80,6 +80,12 @@ export async function database(beforeOperations = "") {
       "utf8",
     ),
   );
+  await db.exec(
+    await readFile(
+      "supabase/migrations/202610210003_simple_collectr_workflow.sql",
+      "utf8",
+    ),
+  );
   await actor(db, owner);
   return db;
 }

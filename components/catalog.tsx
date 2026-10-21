@@ -12,6 +12,7 @@ import {
   stockQuantity,
   comparePrice,
   variantLabel,
+  languageLabel,
   gameNames,
   type Listing,
 } from "@/lib/catalog";
@@ -286,6 +287,11 @@ export default function Catalog({
                     : variantLabel(item.condition)}
                 </span>
               </div>
+              {item.card_printings?.language === "unknown" && (
+                <span className="product-language-pending">
+                  Idioma por confirmar
+                </span>
+              )}
               {stockQuantity(item) === null && (
                 <span className="stock-unconfirmed">
                   Disponibilidad por confirmar
@@ -392,7 +398,7 @@ export default function Catalog({
                 </div>
                 <div>
                   <dt>Idioma</dt>
-                  <dd>{variantLabel(selected.card_printings?.language)}</dd>
+                  <dd>{languageLabel(selected.card_printings?.language)}</dd>
                 </div>
                 {selected.finish && (
                   <div>

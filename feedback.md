@@ -1,3 +1,27 @@
+# Collectr workflow simplification — 2026-10-21
+
+**Review mode:** Browser interaction with the real React component, PostgreSQL integration tests, and live public pricing feeds. The local integration page uses disposable stock; it is not a signed-in production admin session.
+
+## Findings addressed
+
+- The daily workflow required import mapping, physical identity checks, location selection, separate pricing and publication. The landing screen now offers **Importar cartas** and **Actualizar precios**; processing continues automatically in small resumable batches.
+- Re-importing a portfolio must not add the same physical stock twice. Existing variants retain their quantities, and watchlists are excluded. Unknown language stays visible as **Idioma por confirmar**; explicit language labels are preserved.
+- Foil and non-foil records could duplicate the same printing identity. Trusted Collectr duplicates with distinct finishes are consolidated without changing their stock lots or costs.
+- Significant price changes needed a clear decision point. The exception list shows before/after amounts and supports individual or bulk acceptance; ambiguous products, language mismatches, price locks and manually held stock remain exceptions.
+- Exchange values now come from the dated Hacienda feed. The screen displays the rate's date and formats numeric strings correctly. A failed or stale source cannot silently become a verified current quote.
+
+## Verification
+
+140 automated tests cover receipt idempotency, publication without locations or repeated identity checks, unchanged quantities/costs, exact product and finish matching, unknown-language publication, explicit-language exceptions, price-lock preservation, expired leases, concurrent edits and acceptance of price changes. TypeScript and ESLint pass.
+
+The browser integration uses the production SQL functions against PGlite and current Hacienda/TCGCSV feeds. It checks automatic completion and a Japanese-language exception without confirmation prompts. The production migration also passes a transaction/rollback rehearsal. Release-specific evidence and private before/after inventory snapshots are saved under `.local/`.
+
+## Remaining limits
+
+The browser must remain on the admin screen for work to progress; closing it saves progress and opening the screen resumes automatically. An uncertain product or unsupported condition still needs a manual price. The advanced tools remain available for these cases.
+
+---
+
 # Vego Singles: production review and release
 
 **Date:** 2026-10-21, Costa Rica  

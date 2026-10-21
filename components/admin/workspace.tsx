@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import type { OperationRole } from "@/lib/operations/types";
 import { Brand } from "@/components/site-header";
@@ -10,6 +10,7 @@ import { RequestsPanel } from "./requests";
 import { SettingsPanel } from "./settings";
 import { AccountSettings } from "./account-settings";
 import { UsersPanel } from "./users";
+import { StoreUpdatePanel } from "./store-update";
 import {
   ActionForm,
   Feedback,
@@ -20,7 +21,7 @@ import {
   type List,
 } from "./shared";
 const sections: Record<string, string> = {
-  "": "Hoy",
+  "": "Actualizar tienda",
   inventario: "Inventario",
   importaciones: "Importaciones",
   revisiones: "Revisiones",
@@ -39,7 +40,12 @@ export default function OperationsWorkspace({
   role: OperationRole | null;
 }) {
   const [revision, setRevision] = useState(0),
-    [message, setMessage] = useState("");
+    [message, setMessage] = useState(""),
+    [advanced, setAdvanced] = useState(false);
+  useEffect(() => {
+    if (new URLSearchParams(window.location.search).has("listing"))
+      setAdvanced(true);
+  }, []);
   const onDone = (m: string) => {
     setMessage(m);
     setRevision((x) => x + 1);
@@ -57,6 +63,7 @@ export default function OperationsWorkspace({
           {Object.entries(sections)
             .filter(
               ([path]) =>
+                !["importaciones", "revisiones"].includes(path) &&
                 (!accountOnly || ["", "ajustes", "usuarios"].includes(path)) &&
                 (path !== "usuarios" || role === "owner"),
             )
@@ -105,7 +112,23 @@ export default function OperationsWorkspace({
         ) : (
           <>
             {section === "" && (
-              <TodayPanel role={role} revision={revision} onDone={onDone} />
+              <>
+                <StoreUpdatePanel role={role} onDone={onDone} />
+                <details
+                  className="su-advanced"
+                  open={advanced}
+                  onToggle={(e) => setAdvanced(e.currentTarget.open)}
+                >
+                  <summary>Actividad y herramientas avanzadas</summary>
+                  {advanced && (
+                    <TodayPanel
+                      role={role}
+                      revision={revision}
+                      onDone={onDone}
+                    />
+                  )}
+                </details>
+              </>
             )}{" "}
             {(section === "inventario" || section === "revisiones") && (
               <InventoryPanel
@@ -117,10 +140,46 @@ export default function OperationsWorkspace({
               />
             )}{" "}
             {section === "importaciones" && (
-              <ImportsPanel role={role} revision={revision} onDone={onDone} />
+              <>
+                <StoreUpdatePanel role={role} onDone={onDone} />
+                <details
+                  className="su-advanced"
+                  open={advanced}
+                  onToggle={(e) => setAdvanced(e.currentTarget.open)}
+                >
+                  <summary>Importación manual y ajuste de columnas</summary>
+                  {advanced && (
+                    <ImportsPanel
+                      role={role}
+                      revision={revision}
+                      onDone={onDone}
+                    />
+                  )}
+                </details>
+              </>
             )}{" "}
             {section === "precios" && (
-              <PricesPanel role={role} revision={revision} onDone={onDone} />
+              <>
+                <StoreUpdatePanel
+                  role={role}
+                  initialMode="prices"
+                  onDone={onDone}
+                />
+                <details
+                  className="su-advanced"
+                  open={advanced}
+                  onToggle={(e) => setAdvanced(e.currentTarget.open)}
+                >
+                  <summary>Editar una carta o un precio manualmente</summary>
+                  {advanced && (
+                    <PricesPanel
+                      role={role}
+                      revision={revision}
+                      onDone={onDone}
+                    />
+                  )}
+                </details>
+              </>
             )}{" "}
             {section === "solicitudes" && (
               <RequestsPanel role={role} revision={revision} onDone={onDone} />

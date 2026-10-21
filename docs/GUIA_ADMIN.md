@@ -1,8 +1,21 @@
 # Vego Singles: guía de administración
 
-Esta guía incluye instalación, operación diaria y un recorrido de una hora. La interfaz mantiene el español y la tienda conserva la vitrina y el orden de mayor a menor precio.
+## Operación diaria: dos acciones
 
-## 1. Instalación
+Abre `/admin` → **Actualizar tienda**.
+
+1. **Importar cartas**: selecciona el CSV exportado desde Collectr y pulsa **Importar y publicar**. El sistema añade únicamente variantes que no existen, busca el producto y acabado en la fuente de precios, actualiza el cambio USD/CRC y publica las cartas con una referencia vigente. Repetir el archivo conserva las cantidades actuales; no suma otra vez las copias ya recibidas. Las listas de seguimiento se excluyen.
+2. **Actualizar precios**: pulsa **Actualizar precios y publicar** para revisar todo el inventario. El avance se guarda; si cierras el panel, continúa al volver.
+
+Collectr confirma la identidad de las cartas importadas. No hace falta volver a confirmarla ni elegir una ubicación. Si el archivo no indica idioma, se conserva **Idioma por confirmar**, visible también en la tienda y el carrito. Los idiomas explícitos se respetan; una carta japonesa requiere un precio de su mismo idioma.
+
+Al terminar, revisa solo las excepciones. Los cambios mayores al 10%, las cartas de ₡50.000 o más y los precios limitados por costo muestran el precio anterior y propuesto: puedes aceptarlos individualmente o con **Aplicar cambios propuestos**. Las coincidencias ambiguas, la falta de precios, los bloqueos manuales y el stock retenido requieren resolver esa carta. Reintentar pendientes no vuelve a importar stock.
+
+El tipo de cambio se consulta en Hacienda con la fecha publicada por la fuente. Los precios usan las reglas de margen, costo mínimo y redondeo de Ajustes. La actualización conserva cantidades, costos, propietarios, reservas y retenciones manuales. El CSV de Collectr sirve como inventario; su columna de precio no se trata como una cotización actual verificada.
+
+**Herramientas avanzadas** conserva el flujo manual para excepciones y otras fuentes. Las secciones siguientes documentan instalación y ese flujo avanzado; no son pasos obligatorios para una importación normal de Collectr.
+
+## 1. Instalación y herramientas avanzadas
 
 Haz esta parte antes del recorrido. Necesitas acceso al proyecto de Supabase y a la configuración de Vercel. Las credenciales se ingresan en las opciones de entorno; no se copian en chats, documentos ni Git.
 
@@ -27,13 +40,13 @@ Haz esta parte antes del recorrido. Necesitas acceso al proyecto de Supabase y a
 
 5. Configura en Vercel `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` y **`SUPABASE_SERVICE_ROLE_KEY`**. Esta última se usa únicamente en el servidor para registrar consultas. Redeploy después de cambiar variables. Sin la migración, el panel anterior sigue disponible; sin la clave de servidor, la tienda conserva la consulta directa por WhatsApp.
 6. Ingresa en `/login` con tu correo y contraseña. Si tu cuenta solo usaba enlaces, configura su primera contraseña siguiendo [ACCESO_ADMIN.md](ACCESO_ADMIN.md). Luego abre `/admin`. En **Ajustes**, registra ubicaciones, tipo de cambio y fecha, costos de manejo, margen, comisiones y entrega. Puedes ingresar el tipo de cambio manualmente; el enlace de referencia es opcional. No hay un tipo de cambio inventado de fábrica. Los precios USD requieren un cambio fechado de máximo siete días.
-7. Comprueba una carta: verifica identidad, ubícala físicamente, genera/aprueba precio y publica. Crea una consulta desde la tienda y confirma que aparece en **Solicitudes** antes de habilitar toda la operación.
+7. Aplica también, en orden, las migraciones `202610210001_delivery_and_collectr.sql`, `202610210002_one_piece_inventory.sql` y `202610210003_simple_collectr_workflow.sql`. La última habilita el flujo automático de Collectr, sin ubicación obligatoria y con idioma pendiente visible. Comprueba una importación en **Actualizar tienda**. Crea una consulta desde la tienda y confirma que aparece en **Solicitudes** antes de habilitar toda la operación.
 
 La importación nueva usa `operation_import_batches` y `operation_import_rows`. Si ya existían tablas `import_batches`/`import_rows`, conserva sus registros y funciones como historial anterior; esos lotes no se vuelven a recibir automáticamente ni aparecen como lotes nuevos. La migración adapta las restricciones de idioma/condición/acabado sin cambiar los valores anteriores, reconoce variantes equivalentes al recibir y conserva el propietario de cada lote al trasladarlo. Los RPC administrativos anteriores quedan restringidos al servidor para que no eludan los roles nuevos.
 
 La migración retira lectura pública de tablas privadas y mutaciones directas del personal. No concede stock ficticio ni publica borradores. Los listados que ya estaban publicados conservan esa decisión; sus identidades pendientes aparecen en Revisiones. Cambiar su idioma, condición o acabado puede requerir una nueva revisión de precio/publicación.
 
-## 2. Recorrido de una hora
+## 2. Recorrido avanzado de una hora
 
 | Minutos | Pantalla                | Ejercicio y resultado esperado                                                                                                                             |
 | ------- | ----------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- |
