@@ -12,7 +12,7 @@
 
 ## Verification
 
-141 automated tests cover receipt idempotency, publication without locations or repeated identity checks, unchanged quantities/costs, exact product and finish matching, unknown-language publication, explicit-language exceptions, price-lock preservation, expired leases, concurrent edits and acceptance of price changes. TypeScript and ESLint pass.
+141 automated tests cover receipt idempotency, publication without locations or repeated identity checks, unchanged quantities/costs, exact product and finish matching, unknown-language publication, explicit-language exceptions, price-lock preservation, expired leases, concurrent edits and acceptance of price changes, and avoiding repeat acceptance when an approved price stays unchanged. TypeScript and ESLint pass.
 
 The browser integration uses the production SQL functions against PGlite and current Hacienda/TCGCSV feeds. It checks automatic completion and a Japanese-language exception without confirmation prompts. The production migration also passes a transaction/rollback rehearsal. A live-run regression test distinguishes the original CSV receipt quarantine event from a later manual hold; only the former is released automatically. Release-specific evidence and private before/after inventory snapshots are saved under `.local/`.
 

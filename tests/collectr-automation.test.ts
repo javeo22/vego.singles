@@ -122,6 +122,26 @@ test("material price changes wait for one explicit acceptance, and changed polic
     );
     const accepted = await finish(db, item, null, true);
     assert.equal(accepted.published, true);
+    // The next unchanged quote must not ask for the same acceptance again.
+    const repeatedRun = crypto.randomUUID();
+    await actor(db, owner, "service_role");
+    await db.query("select start_store_update('prices',null,$1,$2)", [
+      owner,
+      repeatedRun,
+    ]);
+    const repeatedItem = (
+      await db.query<any>("select claim_store_updates($1) data", [repeatedRun])
+    ).rows[0].data[0];
+    const repeated = await finish(db, repeatedItem, proof(repeatedItem, 120));
+    assert.equal(repeated.published, true);
+    assert.equal(
+      (
+        await db.query<any>("select store_update_summary($1) data", [
+          repeatedRun,
+        ])
+      ).rows[0].data.unchanged,
+      1,
+    );
   } finally {
     await db.close();
   }

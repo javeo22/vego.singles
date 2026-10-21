@@ -92,6 +92,12 @@ export async function database(beforeOperations = "") {
       "utf8",
     ),
   );
+  await db.exec(
+    await readFile(
+      "supabase/migrations/202610210005_reuse_accepted_automatic_prices.sql",
+      "utf8",
+    ),
+  );
   await actor(db, owner);
   return db;
 }
