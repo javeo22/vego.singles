@@ -1228,13 +1228,13 @@ test("simple price update resumes automatically and accepts all proposed excepti
   render(
     <StoreUpdatePanel role="owner" initialMode="prices" onDone={() => {}} />,
   );
-  await screen.findByText("Solo falta resolver esto");
+  await screen.findByText("Precios pendientes");
   assert.deepEqual(calls, ["process"]);
   const user = userEvent.setup({ document: dom.window.document });
   await user.click(
     screen.getByRole("button", { name: "Aplicar 1 cambios propuestos" }),
   );
-  await screen.findByText("Todo listo");
+  await screen.findByText("Sin precios pendientes");
   assert.deepEqual(calls, ["process", "accept"]);
 });
 
@@ -1333,8 +1333,8 @@ test("guided review saves one card, waits for Next, resolves a manual price and 
   assert.deepEqual(saved[1].expected, { priceRevision: 0 });
   assert.equal(screen.queryByLabelText("Ubicación") === null, true);
   await user.click(screen.getByRole("button", { name: "Terminar recorrido" }));
-  await screen.findByText("Cola al día.");
-  assert.ok(screen.getByText("Todas las cartas de la cola están resueltas."));
+  await screen.findByText("Sin pendientes");
+  assert.ok(screen.getByText("Pendientes: 0"));
   window.localStorage.clear();
 });
 
@@ -1406,8 +1406,8 @@ test("guided review retains failed decisions, skips without resolving and resume
   await screen.findByRole("heading", { name: "Beta" });
   assert.equal(screen.queryByRole("heading", { name: "Alpha" }) === null, true);
   await user.click(screen.getByRole("button", { name: "Dejar para después" }));
-  await screen.findByText("Terminaste este recorrido.");
-  assert.ok(screen.getByText(/2 cartas siguen pendientes/));
+  await screen.findByText("Revisión terminada");
+  assert.ok(screen.getByText("Pendientes: 2"));
   await user.click(
     screen.getByRole("button", { name: "Revisar pendientes restantes" }),
   );

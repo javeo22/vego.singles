@@ -12,7 +12,6 @@ export default function SiteFooter() {
       <div className="wide footer-main">
         <div>
           <Brand />
-          <p>Por amor al juego.</p>
         </div>
         <div className="footer-info">
           <h3>Envíos y retiro</h3>

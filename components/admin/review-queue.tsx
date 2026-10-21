@@ -233,11 +233,11 @@ export function ReviewQueue({
     return (
       <section className="rq-entry" aria-label="Cola de revisión">
         <div>
-          <h3>Resuelve una carta a la vez.</h3>
+          <h3>Cola de revisión</h3>
           <p>
             {loading
               ? "Cargando pendientes…"
-              : `${queue.items.length} pendientes de todas las actualizaciones. Tu lugar se guarda.`}
+              : `Pendientes: ${queue.items.length}. El avance se guarda.`}
           </p>
         </div>
         <button
@@ -261,8 +261,7 @@ export function ReviewQueue({
     <section className="review-queue" aria-label="Revisión una por una">
       <header className="rq-header">
         <div>
-          <p className="su-eyebrow">COLA DE REVISIÓN</p>
-          <h2>Una carta. Una decisión.</h2>
+          <h2>Revisión de cartas</h2>
         </div>
         <button
           className="button secondary"
@@ -281,7 +280,7 @@ export function ReviewQueue({
             ? "Recorrido terminado"
             : `Carta ${session.index + 1} de ${session.ids.length}`}
         </span>
-        <span>{queue.items.length} pendientes</span>
+        <span>Pendientes: {queue.items.length}</span>
       </div>
       <progress
         aria-label="Avance de revisión"
@@ -312,26 +311,21 @@ export function ReviewQueue({
       ) : finished ? (
         <div className="rq-complete">
           <h3 ref={heading} tabIndex={-1}>
-            {queue.items.length ? "Terminaste este recorrido." : "Cola al día."}
+            {queue.items.length ? "Revisión terminada" : "Sin pendientes"}
           </h3>
-          <p>
-            {queue.items.length
-              ? `${queue.items.length} cartas siguen pendientes. Las que dejaste para después no se marcaron como resueltas.`
-              : "Todas las cartas de la cola están resueltas."}
-          </p>
           {!!queue.items.length && (
-            <button className="button" onClick={() => enter(true)}>
-              Revisar pendientes restantes
-            </button>
+            <>
+              <p>Las cartas que dejaste para después siguen pendientes.</p>
+              <button className="button" onClick={() => enter(true)}>
+                Revisar pendientes restantes
+              </button>
+            </>
           )}
         </div>
       ) : card ? (
         <>
           {queue.running && (
-            <p role="status">
-              Hay una actualización automática en curso. Puedes continuar cuando
-              termine.
-            </p>
+            <p role="status">Espera a que termine la actualización en curso.</p>
           )}
           <div className="rq-card">
             <div className="rq-art">
@@ -345,8 +339,7 @@ export function ReviewQueue({
                 />
               ) : (
                 <div className="rq-art-empty">
-                  <span>vego.singles</span>
-                  <p>Imagen pendiente</p>
+                  <p>Sin imagen</p>
                 </div>
               )}
             </div>
@@ -368,7 +361,6 @@ export function ReviewQueue({
                 <div className="rq-saved" role="status">
                   <strong>Resuelta y publicada</strong>
                   <p>Precio final: {money(card.before)}</p>
-                  <p>Continúa con Siguiente cuando estés listo.</p>
                 </div>
               ) : (
                 <>
@@ -448,10 +440,6 @@ export function ReviewQueue({
                           Mínimo según costo: {money(card.minimumPrice)}
                         </p>
                       )}
-                      <p className="small-note">
-                        Guardamos tu decisión de precio. El idioma se conserva
-                        tal como está.
-                      </p>
                       <details>
                         <summary>Referencia y nota opcionales</summary>
                         <label className="ops-field">

@@ -309,7 +309,6 @@ export default function CartPanel() {
             <a href="/" className="brand">
               vego<span>.</span>singles
             </a>
-            <p>Por amor al juego.</p>
           </div>
         </div>
       </dialog>

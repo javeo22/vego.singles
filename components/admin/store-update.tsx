@@ -178,14 +178,6 @@ export function StoreUpdatePanel({
   const acceptable = exceptions.filter((item) => item.canAccept);
   return (
     <div className="store-updater">
-      <header className="su-intro" hidden={reviewing}>
-        <p className="su-eyebrow">COLLECTR → TU TIENDA</p>
-        <h2>Menos pasos. Cartas al día.</h2>
-        <p>
-          Encontramos el producto, consultamos el mercado y publicamos lo que
-          está listo. Aquí solo resuelves las excepciones.
-        </p>
-      </header>
       <ReviewQueue
         role={role}
         refreshKey={
@@ -219,7 +211,7 @@ export function StoreUpdatePanel({
             onClick={() => setMode("prices")}
           >
             <strong>Actualizar precios</strong>
-            <span>Todo el inventario, con un clic.</span>
+            <span>Todo el inventario.</span>
           </button>
         </nav>
         {!running && (
@@ -273,11 +265,9 @@ export function StoreUpdatePanel({
               </>
             ) : (
               <>
-                <h3>Un botón para todos los precios.</h3>
                 <p>
-                  Usamos el tipo de cambio de la tienda para actualizar los
-                  precios. Las coincidencias inciertas y los precios bloqueados
-                  se conservan.
+                  Las coincidencias inciertas quedan para revisión. Los precios
+                  bloqueados se conservan.
                 </p>
                 <button
                   className="button"
@@ -290,10 +280,6 @@ export function StoreUpdatePanel({
                 </button>
               </>
             )}
-            <p className="su-policy">
-              Collectr confirma la identidad · Sin ubicación obligatoria ·
-              Idioma sin confirmar visible en la tienda
-            </p>
           </section>
         )}
         {loading && <p role="status">Cargando tu última actualización…</p>}
@@ -320,11 +306,7 @@ export function StoreUpdatePanel({
             aria-live="polite"
           >
             <div className="su-progress-title">
-              <h3>
-                {running
-                  ? "Estamos actualizando tu tienda…"
-                  : "Actualización terminada"}
-              </h3>
+              <h3>{running ? "Actualizando…" : "Actualización terminada"}</h3>
               <span>
                 {data.done} de {data.total} cartas
               </span>
@@ -341,7 +323,7 @@ export function StoreUpdatePanel({
               </div>
               <div>
                 <strong>{data.unchanged}</strong>
-                <span>Ya tenían el precio correcto</span>
+                <span>Sin cambios</span>
               </div>
               <div>
                 <strong>{data.review}</strong>
@@ -373,12 +355,7 @@ export function StoreUpdatePanel({
                 )}
               </p>
             )}
-            {running && (
-              <p>
-                El proceso es automático. Si sales, el avance se guarda y
-                continúa cuando vuelvas.
-              </p>
-            )}
+            {running && <p>El avance se guarda y continúa al volver.</p>}
             {data.receipt && (
               <p>
                 {data.receipt.received} variantes nuevas ·{" "}
@@ -395,7 +372,9 @@ export function StoreUpdatePanel({
           >
             <div className="su-progress-title">
               <h3>
-                {exceptions.length ? "Solo falta resolver esto" : "Todo listo"}
+                {exceptions.length
+                  ? "Precios pendientes"
+                  : "Sin precios pendientes"}
               </h3>
               {acceptable.length > 0 && (
                 <button
