@@ -87,4 +87,4 @@ Authenticated admin screens were covered by component and database tests, rather
 
 ## Subsequent stock intake
 
-After the release checks above, 703 copies across 668 missing variants were received as unpublished, quarantined inventory with language pending review. Physical stock is now 1,035 copies; public listings remain 289. See [stock intake receipt](docs/STOCK_INTAKE_2026_10_21.md).
+After the release checks above, 790 copies across 737 missing variants were received as unpublished, quarantined inventory with language pending review. Physical stock is now 1,122 copies; public listings remain 289. See [stock intake receipt](docs/STOCK_INTAKE_2026_10_21.md).

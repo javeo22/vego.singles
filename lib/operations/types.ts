@@ -1,4 +1,10 @@
-export const games = ["pokemon", "magic", "lorcana", "star-wars"] as const;
+export const games = [
+  "pokemon",
+  "magic",
+  "lorcana",
+  "star-wars",
+  "one-piece",
+] as const;
 export const conditions = [
   "Mint",
   "Near Mint",

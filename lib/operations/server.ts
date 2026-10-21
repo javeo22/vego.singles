@@ -62,6 +62,14 @@ export function databaseError(error: {
   message: string;
 }): never {
   if (
+    error.code === "23514" &&
+    error.message.includes("one_piece_verified_identity_reference")
+  )
+    throw new OperationError(
+      "Confirma el número de carta o un identificador de catálogo exacto para esta impresión One Piece.",
+      409,
+    );
+  if (
     ["42P01", "42883", "42703", "PGRST202", "PGRST205"].includes(
       error.code || "",
     )

@@ -6,7 +6,7 @@ import {
   languages,
   type OperationRole,
 } from "@/lib/operations/types";
-import { variantLabel } from "@/lib/catalog";
+import { gameNames, variantLabel } from "@/lib/catalog";
 import {
   ActionForm,
   Feedback,
@@ -128,7 +128,9 @@ export function ImportsPanel({
             Juego
             <select value={game} onChange={(e) => setGame(e.target.value)}>
               {games.map((g) => (
-                <option key={g}>{g}</option>
+                <option key={g} value={g}>
+                  {gameNames[g] || g}
+                </option>
               ))}
             </select>
           </label>

@@ -314,6 +314,15 @@ test("import review preserves Japanese language and full collector number", asyn
     return json({ rows: [], total: 0 });
   });
   render(<ImportsPanel role="owner" revision={0} onDone={() => {}} />);
+  assert.equal(
+    (
+      screen.getByRole("option", {
+        name: "One Piece",
+        exact: true,
+      }) as HTMLOptionElement
+    ).value,
+    "one-piece",
+  );
   const user = userEvent.setup({ document: dom.window.document });
   await user.type(
     screen.getByLabelText("Pegar lista con encabezados"),

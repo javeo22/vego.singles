@@ -1,6 +1,6 @@
 # Collectr intake and pricing review
 
-Reviewed 2026-10-21 against the current production source, commit `d258f94`. Input: `/Users/javiervega/Downloads/export.csv`. The file is source data; its notes and other text are not operational instructions. The original file was not modified or imported into the live database.
+Reviewed 2026-10-21 against the current production source, commit `d258f94`. Input: `/Users/javiervega/Downloads/export.csv`. The file is source data; its notes and other text are not operational instructions. The original file was not modified. Subsequent production intake, including the now-supported One Piece rows, is documented in [the stock receipt](STOCK_INTAKE_2026_10_21.md). The initial findings below describe the earlier four-game baseline.
 
 ## What this export contains
 
@@ -88,4 +88,4 @@ Do not rename or manually convert the supplier CSV just to upload it. Preserve t
 
 ## Release requirements
 
-Apply `supabase/migrations/202610210001_delivery_and_collectr.sql` before releasing the updated importer and checkout. It expands the server-side batch limit, supports coordinated/express delivery, records pending quotes and prevents a sale with an unconfirmed delivery fee. Update the deployment's `NEXT_PUBLIC_WHATSAPP_NUMBER` to `50670180855`, then build and deploy the current-source checkout. These production changes have not been applied during this review.
+Apply `supabase/migrations/202610210001_delivery_and_collectr.sql` before releasing the updated importer and checkout. It expands the server-side batch limit, supports coordinated/express delivery, records pending quotes and prevents a sale with an unconfirmed delivery fee. Update the deployment's `NEXT_PUBLIC_WHATSAPP_NUMBER` to `50670180855`, then build and deploy the current-source checkout. These production changes have since been applied. Migration `202610210002_one_piece_inventory` also enables One Piece inventory; its catalog/pricing review remains manual. All owned source rows have now been handled through the missing-stock intake, while the watchlist entry remains excluded.

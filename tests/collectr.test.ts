@@ -53,13 +53,13 @@ test("unsupported games, watchlists and graded cards stay available for review w
   const rows = parseImport(
     [
       header,
-      "Main,One Piece,Test,Card,OP01-1,R,Normal,Ungraded,Near Mint,0,1,1,0,false,2026-10-19,",
+      "Main,Digimon,Test,Card,BT01-1,R,Normal,Ungraded,Near Mint,0,1,1,0,false,2026-10-19,",
       "Main,Pokemon,Test,Card,1,R,Normal,Ungraded,Near Mint,0,1,1,0,true,2026-10-19,",
       "Main,Pokemon,Test,Card,2,R,Normal,PSA 10,Near Mint,0,1,1,0,false,2026-10-19,",
       "Main,Pokemon,Test,Test Elite Trainer Box,,,Normal,Ungraded,Near Mint,0,1,50,0,false,2026-10-19,",
     ].join("\n"),
   ).rows;
-  assert.equal(rows[0].game, "one piece");
+  assert.equal(rows[0].game, "digimon");
   assert.match(rows[0].errors.join(), /Juego no compatible/);
   assert.match(rows[1].errors.join(), /Watchlist/);
   assert.match(rows[2].errors.join(), /graduada/);

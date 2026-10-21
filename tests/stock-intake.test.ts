@@ -73,7 +73,7 @@ test("watchlists are excluded and incomplete/unsupported identities remain revie
     parse([
       "Main,Magic: The Gathering,Commander Masters,Sol Ring,396,Normal,Near Mint,1,true",
       "Main,Magic: The Gathering,Commander Masters,Sol Ring,,Normal,Near Mint,1,false",
-      "Main,One Piece,Romance Dawn,Zoro,OP01-001,Normal,Near Mint,1,false",
+      "Main,Digimon,Test,Card,BT01-001,Normal,Near Mint,1,false",
     ]),
     [],
     [],

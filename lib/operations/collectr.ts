@@ -4,7 +4,7 @@ export function collectrCardName(value: string) {
   let name = value.trim();
   const treatments: string[] = [];
   const known =
-    /^(?:showcase(?: scrolls)?|borderless|anime borderless|hyperspace|tdm bundle|prismatic evolutions stamp|cosmos holo|prestige|league promo|full art|alt art|alternate art|jp alternate art|extended art|retro frame|future sight|white border|secret|illustration rare|special illustration rare|(?:rainbow|surge|first-place|galaxy|halo|raised|out of sight|prestige) foil|foil(?: etched)?|etched foil|gold-stamped signature|poke ball pattern|master ball pattern)$/i;
+    /^(?:showcase(?: scrolls)?|borderless|anime borderless|hyperspace|tdm bundle|prismatic evolutions stamp|cosmos holo|prestige|league promo|full art|alt art|alternate art|jp alternate art|extended art|retro frame|future sight|white border|secret|illustration rare|special illustration rare|(?:rainbow|surge|first-place|galaxy|halo|raised|out of sight|prestige) foil|foil(?: etched)?|etched foil|gold-stamped signature|poke ball pattern|master ball pattern|sp|parallel|manga)$/i;
   for (let index = 0; index < 12; index++) {
     const suffix = name.match(/\s*\(([^()]*)\)\s*$/);
     if (!suffix) break;

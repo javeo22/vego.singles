@@ -606,6 +606,19 @@ export async function checkMarketPrice(
   const p = { ...printing, condition, finish };
   const failures: SourceFailure[] = [];
   const sources: Array<[string, () => Promise<MarketReference[]>]> = [];
+  if (p.game === "one-piece")
+    return assessPriceReferences(
+      p,
+      [],
+      [
+        {
+          feed: "coverage",
+          message:
+            "One Piece requiere evidencia de precio manual para la impresión exacta. La recepción de stock no confirma idioma ni precio.",
+        },
+      ],
+      maxAgeHours,
+    );
   if (
     normalizeLanguage(p.language) !== "en" ||
     (p.treatment && p.treatment !== "standard") ||

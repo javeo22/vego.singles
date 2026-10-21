@@ -188,6 +188,10 @@ export function parseImport(
           "magic: the gathering": "magic",
           "magic the gathering": "magic",
           "star wars unlimited": "star-wars",
+          "one piece": "one-piece",
+          onepiece: "one-piece",
+          "one piece card game": "one-piece",
+          "one piece tcg": "one-piece",
         } as Record<string, string>
       )[game] || game;
     const language = normalizeLanguage(

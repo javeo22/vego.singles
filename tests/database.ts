@@ -74,6 +74,12 @@ export async function database(beforeOperations = "") {
       "utf8",
     ),
   );
+  await db.exec(
+    await readFile(
+      "supabase/migrations/202610210002_one_piece_inventory.sql",
+      "utf8",
+    ),
+  );
   await actor(db, owner);
   return db;
 }

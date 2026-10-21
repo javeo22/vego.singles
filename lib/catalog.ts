@@ -24,6 +24,7 @@ export const gameNames: Record<string, string> = {
   magic: "Magic: The Gathering",
   lorcana: "Lorcana",
   "star-wars": "Star Wars Unlimited",
+  "one-piece": "One Piece",
 };
 export const formatPrice = (value: number) =>
   `₡${value.toLocaleString("en-US")}`;

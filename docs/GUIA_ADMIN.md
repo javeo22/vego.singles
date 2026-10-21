@@ -125,6 +125,8 @@ Para procesamiento programado, configura `CRON_SECRET` y la clave de servidor, y
 
 En el entorno cloud deben permitirse `api.scryfall.com`, `api.pokemontcg.io`, `api.tcgdex.net`, `api.tcgplayer.com` y el dominio del proyecto Supabase. Los adaptadores se probaron con respuestas de ejemplo; las consultas externas estaban bloqueadas por la red durante el desarrollo. Confirmar cobertura real y acceso es parte de la instalación.
 
+One Piece ya se acepta como juego de inventario e importación. La búsqueda de catálogo y los precios para ese juego requieren revisión y evidencia manual. Las recepciones provisionales mantienen idioma sin confirmar, precio aprobado en cero, publicación desactivada y cuarentena. Si falta número de carta, conserva la descripción exacta; para verificar la identidad se exige número o referencia exacta de catálogo.
+
 ## 6. Stock y solicitudes
 
 Disponible = físico fuera de cuarentena − reservas vigentes. El carrito no reserva.

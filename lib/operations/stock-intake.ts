@@ -21,7 +21,11 @@ export type CatalogResolution = {
   sourceUrl: string;
   observedAt: string;
 };
-type IntakeRow = ImportRow & { sourceCatalogEvidence?: CatalogResolution };
+type IntakeRow = ImportRow & {
+  sourceCatalogEvidence?: CatalogResolution;
+  sourceValidationErrors?: string[];
+  pendingChecks?: string[];
+};
 
 export function applyIntakeResolutions(
   rows: ImportRow[],
@@ -137,7 +141,23 @@ export function planMissingStock(
       },
     ];
   });
-  const decisions: IntakeDecision[] = rows.map((row) => {
+  const decisions: IntakeDecision[] = rows.map((sourceRow) => {
+    // Description-only One Piece stock is received privately, with the missing
+    // number retained as a review item. Identity verification requires a number
+    // or an exact external catalog identifier; neither is invented here.
+    const row: IntakeRow =
+      sourceRow.game === "one-piece" &&
+      !sourceRow.collectorNumber &&
+      sourceRow.errors.length === 1 &&
+      sourceRow.errors[0] === "Falta número de carta"
+        ? {
+            ...sourceRow,
+            errors: [],
+            sourceValidationErrors: sourceRow.errors,
+            pendingChecks: ["collectorNumber"],
+            treatment: `unnumbered: ${normalize(sourceRow.name)}`,
+          }
+        : sourceRow;
     const base = { row, existingIds: [] as string[] };
     if (
       row.errors.some((error) =>
@@ -340,7 +360,7 @@ begin
   printing=(group_data->>'printingId')::uuid; listing=(group_data->>'listingId')::uuid;
   insert into card_printings(id,game,canonical_name,set_name,collector_number,language,catalog_source,external_card_id,set_code,treatment,kind,identity_verified,metadata)
   values(printing,normalized->>'game',normalized->>'name',normalized->>'setName',normalized->>'collectorNumber',normalized->>'language',coalesce(nullif(normalized->>'provider',''),'collectr'),nullif(normalized->>'externalId',''),normalized->'sourceCatalogEvidence'->>'setCode',normalized->>'treatment',normalized->>'kind',false,
-   jsonb_build_object('source_format','collectr','original_data',normalized->'raw','source_file_sha256',payload->>'fileHash','source_import_batch_id',batch,'source_row_numbers',group_data->'rows','provisional_receipt',true,'source_catalog_evidence',normalized->'sourceCatalogEvidence','source_market_price_snapshot',normalized->'sourceMarketPrice','source_price_override',normalized->'sourcePriceOverride'));
+   jsonb_build_object('source_format','collectr','original_data',normalized->'raw','source_file_sha256',payload->>'fileHash','source_import_batch_id',batch,'source_row_numbers',group_data->'rows','provisional_receipt',true,'source_catalog_evidence',normalized->'sourceCatalogEvidence','source_validation_errors',normalized->'sourceValidationErrors','pending_checks',normalized->'pendingChecks','source_market_price_snapshot',normalized->'sourceMarketPrice','source_price_override',normalized->'sourcePriceOverride'));
   insert into listings(id,card_printing_id,condition,finish,approved_price_crc,published,price_verified,cost_confirmed)
   values(listing,printing,normalized->>'condition',normalized->>'finish',0,false,false,false);
   insert into stock_lots(listing_id,location_code,quantity,quarantined,source_reference,cost_verified)

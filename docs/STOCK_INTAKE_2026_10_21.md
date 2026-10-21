@@ -1,24 +1,24 @@
 # CSV stock intake — 2026-10-21
 
-The supported cards absent from inventory have been received in production. Existing quantities, prices and catalog records were preserved exactly.
+The cards absent from inventory, including One Piece, have been received in production. Existing quantities, prices and catalog records were preserved exactly.
 
 | Result | Variants / source rows | Copies |
 | --- | ---: | ---: |
 | Added: Magic | 570 | 600 |
 | Added: Pokémon | 51 | 52 |
 | Added: Star Wars Unlimited | 47 | 51 |
-| **Total added** | **668** | **703** |
+| Added: One Piece | 69 | 87 |
+| **Total added** | **737** | **790** |
 | Existing CSV rows skipped | 297 | 331 |
-| One Piece queued pending support choice | 69 | 87 |
 | Watchlist excluded | 1 | 1 |
 
-Physical inventory increased from **332 to 1,035 copies**. Public listings remain **289**. A copy absent from this portfolio export was retained; this was an add-missing-only operation, not a quantity reconciliation.
+Physical inventory increased from **332 to 1,122 copies**. Public listings remain **289**. A copy absent from this portfolio export was retained; this was an add-missing-only operation, not a quantity reconciliation.
 
 ## Review status
 
-All 703 new copies are quarantined at `UNASSIGNED`, with unpublished listings, zero approved selling price, unverified identity and unconfirmed acquisition cost. Unlabeled languages remain `unknown`: 666 new variants are unconfirmed and two preserve explicit Japanese hints. Those hints do not mark physical identity verified.
+All 790 new copies are quarantined at `UNASSIGNED`, with unpublished listings, zero approved selling price, unverified identity and unconfirmed acquisition cost. Unlabeled languages remain `unknown`: 734 new variants are unconfirmed and three preserve explicit Japanese hints. Those hints do not mark physical identity verified.
 
-The normal verified-receiving command requires a known language and confirmed identity. This maintenance intake records provisional physical stock separately, without asserting either. Staff can find the cards under Inventario / Revisión. Confirm physical identity, language and condition before releasing quarantine, assigning an actual location, approving a CRC price and publishing.
+The normal verified-receiving command requires a known language and confirmed identity. Verified One Piece printings also need a collector number or an exact catalog reference. Seven One Piece rows arrived without numbers; their full descriptions and missing-number review flags are preserved, with distinct treatments to keep the variants separate. This maintenance intake records provisional physical stock separately, without asserting either. Staff can find the cards under Inventario / Revisión. Confirm physical identity, language and condition before releasing quarantine, assigning an actual location, approving a CRC price and publishing.
 
 CSV market values and costs were preserved as private source information. No currency was inferred and no CSV price became an approved store price. The six art cards and playtest card retain separate treatments for later pricing review.
 
@@ -27,11 +27,11 @@ CSV market values and costs were preserved as private source information. No cur
 - Batch: `493b833b-24c6-445a-8dba-555e1b401a61`
 - Source: `/Users/javiervega/Downloads/export.csv` (unchanged)
 - SHA-256: `da6d912038c385ce56ff33b59fc2c1692f73b4622fbacfed95573a637463987f`
-- Import statuses: 668 received, 69 needing review, 298 skipped (297 existing + one watchlist).
+- Import statuses: 737 received and 298 skipped (297 existing + one watchlist). No owned CSV rows remain unreceived; physical identity/language/pricing reviews are still pending for provisional stock.
 - The production rollback rehearsal passed before each receipt.
 - Every original printing, listing and stock lot was compared with the pre-import snapshot and remained unchanged.
 - Repeating the complete import added **zero variants and zero copies**.
-- 123 automated tests, TypeScript and ESLint passed. The storefront and checkout remained available.
+- 126 automated tests, TypeScript and ESLint passed. The storefront and checkout remained available.
 - Private snapshots, row decisions, catalog evidence and receipts are under `.local/stock-intake/da6d912038c3/`, which is excluded from Git.
 
 ## Missing collector numbers resolved
@@ -48,3 +48,7 @@ Eight rows initially lacked collector numbers. Unique Scryfall records supplied 
 | 37 | Sorcerous Squall Art Card | 14 | [Scryfall](https://scryfall.com/card/altc/14/sorcerous-squall-sorcerous-squall) |
 | 200 | Muraganda Eldrazi | 519 | [Scryfall](https://scryfall.com/card/mb2/519/muraganda-eldrazi) |
 | 374 | Suq'Ata Firewalker | MIR-94 | [Scryfall](https://scryfall.com/card/plst/MIR-94/suqata-firewalker) |
+
+## One Piece support release
+
+One Piece is accepted by the import validator, inventory database and game selector. Migration `202610210002_one_piece_inventory` was rehearsed and applied to production. The previously queued 69 rows were received in the same batch; repeating intake again added zero copies. Automatic catalog and market feeds for One Piece are not configured: exact catalog identification and manual price evidence remain required. No language, collector number or selling price was guessed.

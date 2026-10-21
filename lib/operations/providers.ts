@@ -44,6 +44,10 @@ export async function searchCatalog(
   row: ImportRow,
   request: Fetcher = fetch,
 ): Promise<CatalogCard[]> {
+  if (row.game === "one-piece")
+    throw new CoverageError(
+      "One Piece: selecciona una impresión del catálogo local o verifica su referencia manualmente; no hay búsqueda automática configurada.",
+    );
   if (row.kind === "sealed")
     throw new CoverageError(
       "Producto sellado: verifica referencia, idioma y contenido manualmente",
