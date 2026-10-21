@@ -84,3 +84,7 @@ Authenticated admin screens were covered by component and database tests, rather
 - **Final quantity regression:** the live card had two available copies; the increment control disabled at two and the subtotal became ₡55,000.
 - **Keyboard regression:** Escape closed the card dialog and restored focus to its “Ver…” button.
 - **Cleanup:** both test inquiries are cancelled, the test cart is empty, the responsive viewport override was reset, and no WhatsApp message was sent.
+
+## Subsequent stock intake
+
+After the release checks above, 703 copies across 668 missing variants were received as unpublished, quarantined inventory with language pending review. Physical stock is now 1,035 copies; public listings remain 289. See [stock intake receipt](docs/STOCK_INTAKE_2026_10_21.md).
