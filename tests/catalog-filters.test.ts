@@ -216,3 +216,52 @@ test("catalog projection exposes attributes and Collectr rarity without private 
     await db.close();
   }
 });
+
+test("List reprint prefixes and previously verified Scryfall identities retain exact attribute coverage", async () => {
+  const id = crypto.randomUUID();
+  const printing = {
+    id: "list-card",
+    game: "magic",
+    kind: "single",
+    identity_verified: true,
+    tcgplayer_product_id: "123",
+    collector_number: "77",
+  };
+  const source = {
+    id,
+    tcgplayer_id: 123,
+    collector_number: "LGN-77",
+    set_name: "The List",
+    type_line: "Creature — Zombie",
+    colors: ["B"],
+  };
+  assert.equal(
+    (
+      await fetchCatalogAttributes(
+        [printing],
+        (async () => new Response(JSON.stringify(source))) as typeof fetch,
+      )
+    ).length,
+    1,
+  );
+  const linked = {
+    ...printing,
+    catalog_source: "scryfall",
+    external_card_id: id,
+  };
+  const calls: string[] = [];
+  const result = await fetchCatalogAttributes([linked], (async (url) => {
+    calls.push(String(url));
+    return calls.length === 1
+      ? new Response("{}", { status: 404 })
+      : new Response(
+          JSON.stringify({
+            ...source,
+            tcgplayer_id: null,
+            collector_number: "77",
+          }),
+        );
+  }) as typeof fetch);
+  assert.equal(result.length, 1);
+  assert.equal(calls[1], `https://api.scryfall.com/cards/${id}`);
+});

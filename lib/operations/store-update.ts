@@ -178,7 +178,7 @@ export async function processStoreUpdate(db: SupabaseClient, run: string) {
       const { data, error } = await db
         .from("card_printings")
         .select(
-          "id,game,kind,tcgplayer_product_id,collector_number,identity_verified",
+          "id,game,kind,tcgplayer_product_id,collector_number,identity_verified,catalog_source,external_card_id",
         )
         .in(
           "id",

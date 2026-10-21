@@ -7,6 +7,7 @@ const cardSchema = z.object({
   tcgplayer_id: z.number().nullable().optional(),
   tcgplayer_etched_id: z.number().nullable().optional(),
   collector_number: z.string(),
+  set_name: z.string().optional(),
   type_line: z.string().min(1).max(2000),
   colors: z.array(color).optional(),
   card_faces: z
@@ -20,6 +21,8 @@ export type AttributePrinting = {
   tcgplayer_product_id?: string | null;
   collector_number: string;
   identity_verified: boolean;
+  catalog_source?: string;
+  external_card_id?: string | null;
 };
 export type CatalogAttributes = {
   provider: "scryfall";
@@ -50,7 +53,7 @@ export async function fetchCatalogAttributes(
   for (const productId of products) {
     if (request === fetch)
       await new Promise((resolve) => setTimeout(resolve, 110));
-    const response = await request(
+    let response = await request(
       `https://api.scryfall.com/cards/tcgplayer/${productId}`,
       {
         headers: {
@@ -60,6 +63,26 @@ export async function fetchCatalogAttributes(
         signal: AbortSignal.timeout(8000),
       },
     );
+    const linked = eligible.find(
+      (p) =>
+        Number(p.tcgplayer_product_id) === productId &&
+        p.catalog_source === "scryfall" &&
+        z.string().uuid().safeParse(p.external_card_id).success,
+    );
+    if (response.status === 404 && linked) {
+      if (request === fetch)
+        await new Promise((resolve) => setTimeout(resolve, 110));
+      response = await request(
+        `https://api.scryfall.com/cards/${linked.external_card_id}`,
+        {
+          headers: {
+            Accept: "application/json",
+            "User-Agent": "VegoSingles/1.0 (catalog attributes)",
+          },
+          signal: AbortSignal.timeout(8000),
+        },
+      );
+    }
     if (response.status === 404) continue;
     if (!response.ok) throw new Error(`Catalog responded ${response.status}`);
     const document = { data: [await response.json()] };
@@ -75,9 +98,16 @@ export async function fetchCatalogAttributes(
       if (!colors) continue; // Missing colors must never become "colorless".
       for (const printing of eligible.filter(
         (p) =>
-          [c.tcgplayer_id, c.tcgplayer_etched_id].includes(
+          ([c.tcgplayer_id, c.tcgplayer_etched_id].includes(
             Number(p.tcgplayer_product_id),
-          ) && sameCollectorNumber(p.collector_number, c.collector_number),
+          ) ||
+            (p.catalog_source === "scryfall" && p.external_card_id === c.id)) &&
+          sameCollectorNumber(
+            p.collector_number,
+            c.set_name === "The List"
+              ? c.collector_number.replace(/^[a-z0-9]+-/i, "")
+              : c.collector_number,
+          ),
       ))
         results.push({
           printingId: printing.id,
