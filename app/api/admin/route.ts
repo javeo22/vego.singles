@@ -122,16 +122,13 @@ export async function GET(request: Request) {
       query = query.eq("status", p.get("status"));
     if (type === "proposals")
       query = query.order("suggested_price_crc", { ascending: false });
-    query = query
-      .order(
-        type === "locations"
-          ? "code"
-          : type === "settings"
-            ? "id"
-            : "created_at",
-        { ascending: type === "locations" },
-      )
-      .range(page * 50, page * 50 + 49);
+    query = query.order(
+      type === "locations" ? "code" : type === "settings" ? "id" : "created_at",
+      { ascending: type === "locations" },
+    );
+    // Bulk reviews share a timestamp; a unique tie-breaker keeps pages stable.
+    if (type === "jobs") query = query.order("id", { ascending: false });
+    query = query.range(page * 50, page * 50 + 49);
     // operation_import_rows has no created_at: sort by source row number instead.
     if (type === "imports")
       query = db
